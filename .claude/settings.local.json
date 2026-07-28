@@ -3,7 +3,14 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit -q -m 'Push floor down to a thin band; show only top 40% *)",
-      "Bash(git commit -q -m 'Add double jump mechanic \\(mid-air jump capped at 130% height\\) *)"
+      "Bash(git commit -q -m 'Add double jump mechanic \\(mid-air jump capped at 130% height\\) *)",
+      "Bash(git commit -q -m 'Add ladder tile assets \\(unused for now\\) *)",
+      "Bash(git tag -a 28_July_evening_save -m 'Backup: 28 July evening. *)",
+      "Bash(git tag *)",
+      "Bash(git commit -q -m 'Shorten level to a 60s full-speed run \\(was 90s\\) *)",
+      "Bash(git commit -q -m 'Make the exit hut 30% bigger *)",
+      "Bash(git commit -q -m 'Camera pans up to keep the player visible on high jumps *)",
+      "Bash(git commit -q -m 'Update local permission allowlist *)"
     ]
   }
 }
