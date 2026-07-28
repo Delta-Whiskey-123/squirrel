@@ -46,6 +46,16 @@ class Player {
     this.vx = this.vy = 0;
   }
 
+  // Full reset back to the spawn (used when restarting after the exit).
+  reset() {
+    this._placeAtSpawn();
+    this.onGround = false;
+    this.coyote = 0;
+    this.respawnTimer = 0;
+    this.airJumpsLeft = Physics.MAX_AIR_JUMPS;
+    this.lastSafe = { x: this.level.spawn.x, y: this.level.spawn.y };
+  }
+
   get cx() { return this.x + this.w / 2; }
   get cy() { return this.y + this.h / 2; }
 

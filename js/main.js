@@ -28,22 +28,37 @@
   // --- World ---
   const level = new Level(TEST_LEVEL);
   const player = new Player(level);
+  const camera = new Camera(VIEW_W, VIEW_H);
+  camera.snapTo(level, player);
   Input.attach();
-
-  // In M1 the camera is fixed at the origin (level fits the view). Milestone 2
-  // introduces a following camera.
-  const camX = 0, camY = 0;
 
   // --- Screen state ---
   // 'instructions' shows the controls card and waits for Enter; 'playing' runs
-  // the game. The full state machine (splash/select/hub/...) arrives in M4.
+  // the game; 'complete' is the placeholder finish screen after the exit hut.
+  // The full state machine (splash/select/hub/...) arrives in M4.
   let screen = 'instructions';
-  let blink = 0; // drives the gentle pulse on the "press Enter" prompt
+  let blink = 0; // drives the gentle pulse on the prompts
 
+  function startPlaying() {
+    player.reset();
+    level.resetExit();
+    camera.snapTo(level, player);
+    screen = 'playing';
+  }
+
+  const ENTER = (c) => c === 'Enter' || c === 'NumpadEnter';
   window.addEventListener('keydown', (e) => {
-    if (screen === 'instructions' && (e.code === 'Enter' || e.code === 'NumpadEnter')) {
+    if (ENTER(e.code) && (screen === 'instructions' || screen === 'complete')) {
       e.preventDefault();
-      screen = 'playing';
+      startPlaying();
+    }
+    // DEV/testing shortcut: press End to skip near the exit hut. Remove before
+    // release — a child should never reach the exit this way.
+    if (e.code === 'End' && screen === 'playing') {
+      player.x = level.exitDoorX - 320;
+      player.y = level.floorTopY - player.h;
+      player.vx = player.vy = 0;
+      camera.snapTo(level, player);
     }
   });
 
@@ -67,6 +82,9 @@
       while (acc >= STEP) {
         Input.update(STEP);
         player.update(STEP);
+        camera.update(level, player, STEP);
+        // Door opens as we near it; finish once we've fully stepped inside.
+        if (level.updateExit(player, STEP)) { screen = 'complete'; break; }
         acc -= STEP;
       }
     }
@@ -80,15 +98,46 @@
     ctx.fillStyle = '#bfe3ff';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-    level.draw(ctx, camX, camY, VIEW_W, VIEW_H);
-    player.draw(ctx, camX, camY);
+    level.draw(ctx, camera.x, camera.y, VIEW_W, VIEW_H);
+    player.draw(ctx, camera.x, camera.y);
 
     if (screen === 'instructions') {
       drawInstructions();
+    } else if (screen === 'complete') {
+      drawComplete();
     } else if (paused) {
       ctx.fillStyle = 'rgba(20,10,40,0.45)';
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
+  }
+
+  // Placeholder finish screen (the badge celebration proper comes in a later
+  // milestone). A big cheerful card; press Enter to run it again.
+  function drawComplete() {
+    ctx.fillStyle = 'rgba(20,10,40,0.55)';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    const pw = 620, ph = 280;
+    const px = (VIEW_W - pw) / 2, py = (VIEW_H - ph) / 2;
+    roundRect(px, py, pw, ph, 28);
+    ctx.fillStyle = '#fff7ec'; ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+
+    ctx.fillStyle = '#3a8f2e';
+    ctx.font = '700 52px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('You made it!', VIEW_W / 2, py + 92);
+
+    ctx.fillStyle = '#2f2233';
+    ctx.font = '600 26px system-ui, sans-serif';
+    ctx.fillText('You reached the hut', VIEW_W / 2, py + 150);
+
+    const pulse = 0.6 + 0.4 * Math.abs(Math.sin(blink * 2.2));
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#e8622c';
+    ctx.font = '700 30px system-ui, sans-serif';
+    ctx.fillText('Press ENTER to play again', VIEW_W / 2, py + ph - 46);
+    ctx.globalAlpha = 1;
   }
 
   // The controls card. Text is for the accompanying adult; the drawn key glyphs
