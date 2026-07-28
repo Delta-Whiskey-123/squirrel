@@ -161,13 +161,19 @@ class Level {
   // door. Only drawn when it is near the view.
   _drawExit(ctx, camX, camY, viewW) {
     const sx = this.exitDoorX - camX;              // door centre in screen space
-    if (sx < -160 || sx > viewW + 160) return;     // off-screen, skip
-    const ground = this.floorTopY - camY;
+    if (sx < -260 || sx > viewW + 260) return;     // off-screen, skip
     const OUT = '#2f2233';
+    const SCALE = 1.3;                             // overall hut size
+
+    // Draw in local space anchored at the door centre on the ground (0, 0);
+    // the transform handles both position and the size scaling.
+    ctx.save();
+    ctx.translate(sx, this.floorTopY - camY);
+    ctx.scale(SCALE, SCALE);
 
     // --- Hut body ---
     const bw = 176, bh = 150;
-    const bx = sx - bw / 2, by = ground - bh;
+    const bx = -bw / 2, by = -bh;
     ctx.fillStyle = '#8a5a2b';
     ctx.fillRect(bx, by, bw, bh);
     ctx.lineWidth = 4; ctx.strokeStyle = OUT;
@@ -176,7 +182,7 @@ class Level {
     // --- Roof (a peaked triangle overhanging the body) ---
     ctx.beginPath();
     ctx.moveTo(bx - 16, by + 4);
-    ctx.lineTo(sx, by - 66);
+    ctx.lineTo(0, by - 66);
     ctx.lineTo(bx + bw + 16, by + 4);
     ctx.closePath();
     ctx.fillStyle = '#6b3f1c'; ctx.fill();
@@ -184,7 +190,7 @@ class Level {
 
     // --- Two small windows, flanking the door ---
     const winY = by + 26, ws = 30;
-    for (const wx of [sx - 62, sx + 32]) {
+    for (const wx of [-62, 32]) {
       ctx.fillStyle = '#bfe3ff';
       ctx.fillRect(wx, winY, ws, ws);
       ctx.lineWidth = 3; ctx.strokeStyle = OUT;
@@ -197,13 +203,13 @@ class Level {
 
     // --- Rainbow arched door (swings open as the player approaches) ---
     const dw = 52, dh = 84;
-    const dx = sx - dw / 2, dyTop = ground - dh, r = dw / 2;
+    const dx = -dw / 2, dyTop = -dh, r = dw / 2;
     const archPath = () => {
       ctx.beginPath();
-      ctx.moveTo(dx, ground);
+      ctx.moveTo(dx, 0);
       ctx.lineTo(dx, dyTop + r);
-      ctx.arc(sx, dyTop + r, r, Math.PI, 0);
-      ctx.lineTo(dx + dw, ground);
+      ctx.arc(0, dyTop + r, r, Math.PI, 0);
+      ctx.lineTo(dx + dw, 0);
       ctx.closePath();
     };
 
@@ -237,6 +243,8 @@ class Level {
     // Door frame outline.
     archPath();
     ctx.lineWidth = 4; ctx.strokeStyle = OUT; ctx.stroke();
+
+    ctx.restore();
   }
 
   // Flat, thick-outlined ground block: green top cap on brown earth.
