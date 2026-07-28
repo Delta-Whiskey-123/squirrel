@@ -11,8 +11,12 @@ const Physics = {
   GRAVITY:         2000,
   MOVE_SPEED:      260,
   ROLL_SPEED:      380,
-  JUMP_VELOCITY:  -800,   // ~160px apex (~3.3 tiles) — a good, high, floaty hop
-  DOUBLE_JUMP_VEL:-680,
+  JUMP_VELOCITY:  -800,   // ~160px apex H (~3.3 tiles) — a good, high, floaty hop
+  // Mid-air (double) jump. Sized so a second jump pressed at the first jump's
+  // apex peaks at exactly 1.3*H and no higher: extra rise = 0.3*160 = 48px,
+  // v = sqrt(2*GRAVITY*48) ≈ 438. Pressed earlier it peaks lower, so 1.3*H caps it.
+  DOUBLE_JUMP_VEL:-438,
+  MAX_AIR_JUMPS:  1,      // extra jumps allowed while airborne (1 = double jump)
   GLIDE_MAX_FALL:  120,
   MAX_FALL:        900,
   ACCEL:           2400,   // ground horizontal acceleration

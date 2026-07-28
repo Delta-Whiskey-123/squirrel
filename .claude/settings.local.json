@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git add *)",
-      "Bash(git commit -q -m 'Push floor down to a thin band; show only top 40% *)"
+      "Bash(git commit -q -m 'Push floor down to a thin band; show only top 40% *)",
+      "Bash(git commit -q -m 'Add double jump mechanic \\(mid-air jump capped at 130% height\\) *)"
     ]
   }
 }

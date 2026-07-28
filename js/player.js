@@ -30,6 +30,7 @@ class Player {
 
     this.coyote = 0;        // time left where a jump is still allowed after leaving ground
     this.wasJumpHeld = false;
+    this.airJumpsLeft = Physics.MAX_AIR_JUMPS; // mid-air jumps until we next land
 
     // Respawn: remember the last spot we stood safely, and count down when we
     // fall out of the world.
@@ -78,12 +79,24 @@ class Player {
     if (this.onGround) this.coyote = P.COYOTE_TIME;
     else if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
 
-    // --- Jump start (buffered press + on ground or within coyote window) ---
-    if (Input.jumpQueued() && this.coyote > 0) {
-      this.vy = P.JUMP_VELOCITY;
-      this.onGround = false;
-      this.coyote = 0;
-      Input.consumeJump();
+    // --- Jump ---
+    if (Input.jumpQueued()) {
+      if (this.coyote > 0) {
+        // Ground jump (also fires within the coyote window after a ledge).
+        this.vy = P.JUMP_VELOCITY;
+        this.onGround = false;
+        this.coyote = 0;
+        Input.consumeJump();
+      } else if (this.airJumpsLeft > 0 && this.vy >= 0) {
+        // Mid-air (double) jump, allowed only at the apex or while falling
+        // (vy >= 0). This guarantees it always boosts (never slows a fast rise)
+        // and caps the peak at ~1.3*H when pressed right at the apex. A press
+        // made a touch early is held by the jump buffer and fires at the apex;
+        // a press while still rising fast is simply ignored (not wasted).
+        this.vy = P.DOUBLE_JUMP_VEL;
+        this.airJumpsLeft--;
+        Input.consumeJump();
+      }
     }
 
     // --- Variable jump height: releasing jump while rising cuts the ascent ---
@@ -105,6 +118,7 @@ class Player {
     this.onGround = hitY.hitBottom;
     if (hitY.hitBottom) {
       this.vy = 0;
+      this.airJumpsLeft = P.MAX_AIR_JUMPS; // landing refills the mid-air jump
       this._rememberSafeSpot();
     }
     if (hitY.hitTop) this.vy = 0;
