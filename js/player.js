@@ -61,7 +61,16 @@ class Player {
 
     // --- Horizontal acceleration toward the input direction ---
     const dir = Input.moveX();
-    const accel = this.onGround ? P.ACCEL : P.AIR_ACCEL;
+    let accel;
+    if (this.onGround) {
+      accel = P.ACCEL;
+    } else {
+      // In the air, turning around (input opposes current motion) uses a much
+      // snappier acceleration so direction changes feel responsive with little
+      // inertia — most noticeable during the long hang of a double jump.
+      const turning = dir !== 0 && this.vx !== 0 && Math.sign(dir) !== Math.sign(this.vx);
+      accel = turning ? P.AIR_TURN_ACCEL : P.AIR_ACCEL;
+    }
     if (dir !== 0) {
       this.vx += dir * accel * dt;
       this.facing = dir;

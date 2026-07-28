@@ -20,7 +20,8 @@ const Physics = {
   GLIDE_MAX_FALL:  120,
   MAX_FALL:        900,
   ACCEL:           2400,   // ground horizontal acceleration
-  AIR_ACCEL:       1400,
+  AIR_ACCEL:       1400,   // air accel when speeding up / holding a direction
+  AIR_TURN_ACCEL:  5000,   // air accel when reversing — snappy, low-inertia turns
   FRICTION:        2000,   // ground deceleration when no input
   COYOTE_TIME:     0.12,
   JUMP_BUFFER:     0.15,
