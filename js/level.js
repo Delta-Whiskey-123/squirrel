@@ -37,7 +37,7 @@ const FLOOR_VISIBLE_FRAC = 0.40;  // show only the top 40%; the rest sits off-sc
 const FLOOR_TOP_Y = Math.round(VIEW_H - FLOOR_VISIBLE_FRAC * FLOOR_THICKNESS);
 
 // How long an uninterrupted full-speed run from spawn to the exit door takes.
-const TRAVERSE_SECONDS = 90;
+const TRAVERSE_SECONDS = 60;
 
 class Level {
   constructor(rows) {
