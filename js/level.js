@@ -12,13 +12,12 @@
 
 const TILE = Physics.TILE; // 48
 
-// A wide, forgiving test course. Continuous ground so you rarely fall, one
-// small pit (cols 20-22) to show off the soft respawn, and a climbing
-// staircase on the right where every platform is only ~2 tiles up from the
-// one before it, so all of them are reachable with a single jump.
+// A wide, forgiving test course sized to fit the 960x540 view (12 rows tall;
+// the bottom floor row runs off the lower edge so the ground reads as solid).
+// A continuous grass floor spans the full width along the bottom, and a
+// climbing staircase lifts you up in ~2 tile steps so every platform is
+// reachable with a single jump.
 const TEST_LEVEL = [
-  '................................................',
-  '................................................',
   '..............................#####.............', // E: top reward platform
   '................................................',
   '........................####....................', // D
@@ -29,8 +28,8 @@ const TEST_LEVEL = [
   '................................................',
   '......####............................#####.....', // A (left) + right platform
   '..P.............................................', // spawn
-  '####################...#########################', // floor with a small pit
-  '####################...#########################',
+  '################################################', // grass floor (full width)
+  '################################################', // floor continues off-screen
 ];
 
 class Level {
