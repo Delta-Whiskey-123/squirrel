@@ -1,0 +1,29 @@
+/* Squirrel Club — full-window letterboxed canvas.
+   Keep this minimal: the game draws everything to the canvas. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #1b1030;          /* dark border around the letterboxed stage */
+  font-family: system-ui, sans-serif;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The canvas is sized in JS to preserve the 960x540 aspect ratio.
+   image-rendering keeps the flat, crisp look when scaled. */
+#game {
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+  background: #bfe3ff;
+  touch-action: none;
+}
