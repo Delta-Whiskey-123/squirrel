@@ -73,29 +73,20 @@ class Level {
     for (let r = r0; r < r1; r++) {
       for (let c = c0; c < c1; c++) {
         const t = this.rows[r][c];
-        // Only the topmost tile of a stack gets a grass cap; tiles buried under
-        // another solid are plain earth. This stops the grass line that would
-        // otherwise appear partway down a multi-row floor.
-        if (t === '#') {
-          const capped = this.tileAt(c, r - 1) !== '#';
-          this._drawSolid(ctx, c * TILE - camX, r * TILE - camY, capped);
-        }
+        if (t === '#') this._drawSolid(ctx, c * TILE - camX, r * TILE - camY);
       }
     }
   }
 
-  // Flat, thick-outlined ground block. A grass-topped tile is mostly grass with
-  // a thin band of earth at the bottom; a buried tile is all earth.
-  _drawSolid(ctx, x, y, capped) {
+  // Flat, thick-outlined ground block: green top cap on brown earth.
+  _drawSolid(ctx, x, y) {
     const s = TILE;
     // Earth body.
     ctx.fillStyle = '#8a5a2b';
     ctx.fillRect(x, y, s, s);
-    // Grass cap: tall, so only a thin strip of brown soil shows beneath it.
-    if (capped) {
-      ctx.fillStyle = '#5bbf4a';
-      ctx.fillRect(x, y, s, Math.round(s * 0.78));
-    }
+    // Grass cap.
+    ctx.fillStyle = '#5bbf4a';
+    ctx.fillRect(x, y, s, Math.round(s * 0.28));
     // Thick outline.
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#2f2233';
