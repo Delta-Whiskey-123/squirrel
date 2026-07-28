@@ -11,8 +11,8 @@ const Physics = {
   GRAVITY:         2000,
   MOVE_SPEED:      260,
   ROLL_SPEED:      380,
-  JUMP_VELOCITY:  -700,
-  DOUBLE_JUMP_VEL:-600,
+  JUMP_VELOCITY:  -800,   // ~160px apex (~3.3 tiles) — a good, high, floaty hop
+  DOUBLE_JUMP_VEL:-680,
   GLIDE_MAX_FALL:  120,
   MAX_FALL:        900,
   ACCEL:           2400,   // ground horizontal acceleration
