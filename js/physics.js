@@ -60,11 +60,16 @@ function moveAndCollide(box, dx, dy, level) {
   if (dy !== 0) {
     box.y += dy;
     if (dy > 0) {
-      // Falling: check the bottom edge.
+      // Falling: check the bottom edge. Rest on the *highest* solid surface the
+      // bottom edge touches — which may be a tile top (grid-aligned) or the
+      // free-standing floor band, so ask the level rather than assuming a grid.
       const bottom = box.y + box.h;
-      if (solidRow(level, bottom, box.x, box.w)) {
-        const tileTop = Math.floor(bottom / Physics.TILE) * Physics.TILE;
-        box.y = tileTop - box.h;
+      let surface = Infinity;
+      for (const x of spanSamples(box.x, box.w)) {
+        if (level.isSolidAt(x, bottom)) surface = Math.min(surface, level.surfaceYAt(x, bottom));
+      }
+      if (surface !== Infinity) {
+        box.y = surface - box.h;
         result.hitBottom = true;
       }
     } else {
