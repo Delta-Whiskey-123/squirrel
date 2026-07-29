@@ -31,6 +31,7 @@
   const camera = new Camera(VIEW_W, VIEW_H);
   camera.snapTo(level, player);
   Input.attach();
+  Sfx.attach();
 
   // --- Screen state ---
   // 'select' -> 'instructions' -> 'playing' -> 'complete', with 'pausemenu'
@@ -64,7 +65,7 @@
     for (const g of level.gems) {
       if (g.taken) continue;
       const dx = cx - g.x, dy = cy - g.y;
-      if (dx * dx + dy * dy < R2) { g.taken = true; gems[g.tier]++; }
+      if (dx * dx + dy * dy < R2) { g.taken = true; gems[g.tier]++; Sfx.collect(g.tier); }
     }
   }
 
@@ -147,6 +148,7 @@
     player.draw(ctx, camera.x, camera.y);
 
     if (screen === 'playing' || screen === 'pausemenu') drawHud();
+    if (Sfx.isMuted()) drawMuteIcon();
 
     if (screen === 'select') {
       drawSelect();
@@ -160,6 +162,18 @@
       ctx.fillStyle = 'rgba(20,10,40,0.45)';
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
+  }
+
+  // Small speaker-with-a-slash, top-right, shown while sound is muted.
+  function drawMuteIcon() {
+    const x = VIEW_W - 40, y = 24;
+    ctx.fillStyle = 'rgba(47,34,51,0.85)';
+    ctx.beginPath();
+    ctx.moveTo(x, y - 4); ctx.lineTo(x + 5, y - 4); ctx.lineTo(x + 11, y - 9);
+    ctx.lineTo(x + 11, y + 9); ctx.lineTo(x + 5, y + 4); ctx.lineTo(x, y + 4);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(47,34,51,0.85)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x + 15, y - 8); ctx.lineTo(x + 23, y + 8); ctx.stroke();
   }
 
   // Top-left counter: a coin per tier with its running collected count.

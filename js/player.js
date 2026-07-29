@@ -124,6 +124,7 @@ class Player {
         this.onGround = false;
         this.coyote = 0;
         Input.consumeJump();
+        Sfx.jump();
       } else if (this.airJumpsLeft > 0 && this.vy >= 0) {
         // Mid-air (double) jump, allowed only at the apex or while falling
         // (vy >= 0). This guarantees it always boosts (never slows a fast rise)
@@ -133,6 +134,7 @@ class Player {
         this.vy = P.DOUBLE_JUMP_VEL;
         this.airJumpsLeft--;
         Input.consumeJump();
+        Sfx.jump();
       }
     }
 
@@ -163,8 +165,9 @@ class Player {
         this.onGround = false;
         this.airJumpsLeft = P.MAX_AIR_JUMPS;
         this.landTimer = 0.1;
+        Sfx.jump();                            // spring reuses the jump blip for now
       } else {
-        if (!wasOnGround) this.landTimer = 0.12; // squash pulse on touchdown
+        if (!wasOnGround) { this.landTimer = 0.12; Sfx.land(); } // squash + thud on touchdown
         this.vy = 0;
         this.airJumpsLeft = P.MAX_AIR_JUMPS; // landing refills the mid-air jump
         this._rememberSafeSpot();
