@@ -150,9 +150,9 @@
 
     const sel = CHARACTERS[selIndex];
 
-    // Big animated preview (gentle idle breathing).
+    // Big animated preview (gentle idle breathing; ears sway via t).
     const sq = 1 + Math.sin(blink * 3) * 0.03;
-    sel.draw(ctx, VIEW_W / 2, py + 250, 2.6, { face: 0, leg: 0, sq });
+    sel.draw(ctx, VIEW_W / 2, py + 262, 2.2, { face: 0, leg: 0, sq, t: blink });
 
     ctx.fillStyle = sel.locked ? '#8a7f72' : '#2f2233';
     ctx.font = '700 32px system-ui, sans-serif';
@@ -173,7 +173,7 @@
       else { ctx.lineWidth = 3; ctx.strokeStyle = '#d8c9ad'; }
       ctx.stroke();
 
-      c.draw(ctx, bx + sw / 2, by + sh - 14, 0.82, { face: 0, leg: 0, sq: 1 });
+      c.draw(ctx, bx + sw / 2, by + sh - 12, 0.72, { face: 0, leg: 0, sq: 1, t: blink });
       if (c.locked) drawLock(bx + sw - 22, by + 16);
     });
 

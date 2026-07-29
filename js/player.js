@@ -195,7 +195,7 @@ class Player {
     if (this.landTimer > 0) sq = 1 - 0.16 * (this.landTimer / 0.12);
     if (this.onGround && !moving) sq += Math.sin(this.animTime * 3) * 0.02;
 
-    this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq });
+    this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq, t: this.animTime });
   }
 
   setCharacter(c) { this.character = c; }

@@ -96,47 +96,94 @@ function drawLion(ctx, cx, feetY, s, o) {
   ctx.restore();
 }
 
-// Blue Ted Ted — the rabbit. Not built yet: a blue silhouette with long ears
-// and a "?" to read as a locked, coming-soon slot until we design it.
-function drawBlueLocked(ctx, cx, feetY, s, o) {
+// Blue Ted Ted — the rabbit. Dusty blue-grey muslin, tall floppy-tipped ears
+// (which bounce with movement), soft sleepy stitched eyes, and a Y mouth.
+function drawBlueRabbit(ctx, cx, feetY, s, o) {
   o = o || {};
-  const sq = o.sq || 1;
-  const BLUE = '#7BA1DE', OUT = '#2F2233', IN = '#CDDBF3';
+  const face = o.face || 0, leg = o.leg || 0, sq = o.sq || 1, t = o.t || 0;
+  const BLU = '#8DA9B6', OUT = '#33454E', INK = '#2E3C43',
+        EARIN = '#CBD8DD', BELLY = '#B6C7CE';
 
   ctx.save();
   ctx.translate(cx, feetY);
-  ctx.scale(1 / Math.sqrt(sq), sq);
+  ctx.scale(1 / Math.sqrt(sq), sq);     // squash/stretch about the feet
   ctx.scale(s, s);
+  ctx.rotate(face * 0.05);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const hy = -40;
 
   ctx.fillStyle = 'rgba(40,25,15,0.16)';
-  ctx.beginPath(); ctx.ellipse(0, 1, 17, 4, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 1, 18, 4.5, 0, 0, 7); ctx.fill();
 
-  ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.fillStyle = BLUE;
-  [-7, 7].forEach((lx) => { _rr(ctx, lx - 4, -9, 8, 10, 3.5); ctx.fill(); ctx.stroke(); });
+  // Legs, body, belly, arms — same lovey build as Yellow.
+  ctx.fillStyle = BLU; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+  [[-8, leg], [8, -leg]].forEach(([lx, dy]) => { _rr(ctx, lx - 4, -11 + dy, 8, 12 - dy, 3.5); ctx.fill(); ctx.stroke(); });
+  ctx.fillStyle = BLU; _rr(ctx, -13, -27, 26, 20, 9); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = BELLY; ctx.beginPath(); ctx.ellipse(0, -15, 7.5, 7, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = BLU;
+  [-13, 13].forEach((ax) => { ctx.beginPath(); ctx.ellipse(ax, -20, 4.5, 6, 0, 0, 7); ctx.fill(); ctx.stroke(); });
 
-  ctx.beginPath(); ctx.ellipse(0, -18, 13, 14, 0, 0, 7); ctx.fill(); ctx.stroke();
-  [-12, 12].forEach((ax) => { ctx.beginPath(); ctx.ellipse(ax, -20, 4, 6, 0, 0, 7); ctx.fill(); ctx.stroke(); });
-
-  [[-6, -0.16], [6, 0.16]].forEach(([ex, rot]) => {
-    ctx.save(); ctx.translate(ex, -46); ctx.rotate(rot);
-    ctx.fillStyle = BLUE; _rr(ctx, -4, -28, 8, 30, 4); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = IN; _rr(ctx, -2, -25, 4, 22, 2); ctx.fill();
+  // Ears (drawn before the head so it overlaps their bases). Angle = outward
+  // splay + idle sway + a walk flap + flop from squash/stretch: they lift on a
+  // jump (sq>1) and splay out on landing (sq<1).
+  const flop = (1 - sq) * 1.3;
+  const ang = 0.12 + Math.sin(t * 2.2) * 0.05 + Math.abs(leg) * 0.012 + flop;
+  [-1, 1].forEach((side) => {
+    ctx.save();
+    ctx.translate(side * 5, hy - 9);
+    ctx.scale(side, 1);                 // mirror the right ear onto the left
+    ctx.rotate(ang);
+    ctx.fillStyle = BLU; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-4, 2);
+    ctx.bezierCurveTo(-7, -14, -5, -27, 2, -32);
+    ctx.bezierCurveTo(8, -34, 10, -27, 6, -23);
+    ctx.bezierCurveTo(4, -18, 4, -8, 4, 2);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = EARIN;
+    ctx.beginPath();
+    ctx.moveTo(-1, -2);
+    ctx.bezierCurveTo(-3.5, -14, -2.5, -24, 2, -28);
+    ctx.bezierCurveTo(5.5, -29, 6, -24, 4, -20);
+    ctx.bezierCurveTo(2, -15, 2, -8, 1.5, -2);
+    ctx.closePath(); ctx.fill();
     ctx.restore();
   });
 
-  ctx.fillStyle = BLUE; ctx.beginPath(); ctx.arc(0, -42, 13, 0, 7); ctx.fill(); ctx.stroke();
+  // Head.
+  ctx.fillStyle = BLU; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(0, hy, 13.5, 14.5, 0, 0, 7); ctx.fill(); ctx.stroke();
 
-  ctx.fillStyle = '#2F2233';
-  ctx.font = '700 18px system-ui, sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('?', 0, -42);
+  // Soft, sleepy stitched eyes (shallow curves), shifted toward facing.
+  const ex = face * 1.2;
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+  [-6.9, 6.9].forEach((dx) => { ctx.beginPath(); ctx.arc(dx + ex, hy - 4, 2.7, 0.72, 2.42); ctx.stroke(); });
+
+  // Small stitched nose.
+  ctx.fillStyle = INK;
+  ctx.beginPath();
+  ctx.moveTo(-2.6, hy + 2); ctx.lineTo(2.6, hy + 2);
+  ctx.quadraticCurveTo(1.8, hy + 5.5, 0, hy + 6.3);
+  ctx.quadraticCurveTo(-1.8, hy + 5.5, -2.6, hy + 2);
+  ctx.closePath(); ctx.fill();
+
+  // Y-shaped mouth: a stem from the nose forking into two.
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, hy + 6.3); ctx.lineTo(0, hy + 10);
+  ctx.moveTo(0, hy + 10); ctx.lineTo(-3.4, hy + 13);
+  ctx.moveTo(0, hy + 10); ctx.lineTo(3.4, hy + 13);
+  ctx.stroke();
+
+  // Faint cheeks.
+  ctx.fillStyle = 'rgba(90,120,135,0.30)';
+  [-8.5, 8.5].forEach((cxk) => { ctx.beginPath(); ctx.ellipse(cxk, hy + 3, 2.4, 1.6, 0, 0, 7); ctx.fill(); });
 
   ctx.restore();
 }
 
-// The roster. `locked` characters can be previewed but not chosen yet.
+// The roster.
 const CHARACTERS = [
   { id: 'yellow', name: 'Yellow Ted Ted', locked: false, draw: drawLion },
-  { id: 'blue',   name: 'Blue Ted Ted',   locked: true,  draw: drawBlueLocked },
+  { id: 'blue',   name: 'Blue Ted Ted',   locked: false, draw: drawBlueRabbit },
 ];
