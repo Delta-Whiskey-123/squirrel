@@ -72,6 +72,13 @@ class Level {
       plat(mx - 68, -66 - (i % 2) * 30, 128, 'high');
     }
 
+    // Stepping platforms that bridge the gaps in the high route so it can be
+    // hopped across (single or double jump). A couple sit a little lower (rows
+    // K–L) to give the higher path a gentle up-and-down.
+    [[1560, 62], [1820, 89], [2080, 40], [2530, 30], [2796, 30], [3062, 30],
+     [3620, 40], [3880, 46], [4140, 40], [4560, 30], [4737, 40], [4914, 46], [5120, 40]]
+      .forEach(([x, y]) => plat(x, y, 90, 'high'));
+
     // The launch platform (X35–45 at row S) and a zig-zag of small stepping
     // platforms climbing up to it, so it can be reached in a few alternating
     // hops (each ~130px — a single jump).
