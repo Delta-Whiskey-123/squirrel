@@ -14,7 +14,12 @@
       "mcp__visualize__show_widget",
       "Bash(git commit -q -m 'Replace placeholder box with the yellow lion player *)",
       "Bash(git commit -q -m 'Blue Ted Ted ears droop down on jump via spring physics *)",
-      "Bash(git commit -q -m 'Ears also trail horizontally on sideways motion *)"
+      "Bash(git commit -q -m 'Ears also trail horizontally on sideways motion *)",
+      "Bash(git commit -q -m 'Add README with progress summary and version history *)",
+      "Bash(git tag -a v0.3.0 -m 'v0.3.0 \\(2026-07-29\\) — Characters & menus *)",
+      "Bash(git commit -q -m 'Playable opening \\(X1-101\\): rect collision, one-way platforms, springs *)",
+      "Bash(git commit -q -m 'Add second orange platform reached by a straight-up spring *)",
+      "Bash(git commit -q -m 'Shift the top orange platform right to progress the runway *)"
     ]
   }
 }
