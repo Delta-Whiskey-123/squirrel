@@ -26,7 +26,7 @@ const PROFILE = [
   [0, 521], [900, 521], [1150, 473], [1550, 473], [1850, 521], [2500, 521],
   [2800, 473], [3100, 425], [3500, 425], [3800, 473], [4100, 521], [4700, 521],
   [5000, 473], [5300, 425], [5600, 377], [5900, 377], [6200, 425], [6500, 473],
-  [6800, 521], [7300, 521], [7600, 473], [7878, 473],
+  [6800, 521], [7488, 521], [7878, 521],
 ];
 
 function profileTopAt(x) {
@@ -59,7 +59,7 @@ class Level {
 
     // Exit hut: sits just before the X101 right wall. Walking into the doorway
     // ends the level (see updateExit).
-    this.exitDoorX = 7800;
+    this.exitDoorX = 7656;
     this.doorOpen = 0;
     this.exitOpenDist = 180;
 
