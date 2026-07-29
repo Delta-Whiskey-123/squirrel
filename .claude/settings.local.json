@@ -19,7 +19,11 @@
       "Bash(git tag -a v0.3.0 -m 'v0.3.0 \\(2026-07-29\\) — Characters & menus *)",
       "Bash(git commit -q -m 'Playable opening \\(X1-101\\): rect collision, one-way platforms, springs *)",
       "Bash(git commit -q -m 'Add second orange platform reached by a straight-up spring *)",
-      "Bash(git commit -q -m 'Shift the top orange platform right to progress the runway *)"
+      "Bash(git commit -q -m 'Shift the top orange platform right to progress the runway *)",
+      "Bash(git commit -q -m 'Fix overlapping platforms before the zig-zag *)",
+      "Bash(git commit -q -m 'Bridge the high route so it can be hopped across *)",
+      "Bash(git commit -q -m 'Add three-tier collectable gems \\(A/B/C\\) with a count HUD *)",
+      "Bash(git commit -q -m 'Add fruit reference images; update permission allowlist *)"
     ]
   }
 }
