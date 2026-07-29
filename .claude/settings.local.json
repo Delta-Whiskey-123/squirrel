@@ -10,7 +10,11 @@
       "Bash(git commit -q -m 'Shorten level to a 60s full-speed run \\(was 90s\\) *)",
       "Bash(git commit -q -m 'Make the exit hut 30% bigger *)",
       "Bash(git commit -q -m 'Camera pans up to keep the player visible on high jumps *)",
-      "Bash(git commit -q -m 'Update local permission allowlist *)"
+      "Bash(git commit -q -m 'Update local permission allowlist *)",
+      "mcp__visualize__show_widget",
+      "Bash(git commit -q -m 'Replace placeholder box with the yellow lion player *)",
+      "Bash(git commit -q -m 'Blue Ted Ted ears droop down on jump via spring physics *)",
+      "Bash(git commit -q -m 'Ears also trail horizontally on sideways motion *)"
     ]
   }
 }
