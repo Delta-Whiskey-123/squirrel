@@ -154,10 +154,19 @@ class Player {
     const wasOnGround = this.onGround;
     this.onGround = hitY.hitBottom;
     if (hitY.hitBottom) {
-      if (!wasOnGround) this.landTimer = 0.12; // squash pulse on touchdown
-      this.vy = 0;
-      this.airJumpsLeft = P.MAX_AIR_JUMPS; // landing refills the mid-air jump
-      this._rememberSafeSpot();
+      const spring = this.level.springAt ? this.level.springAt(this.x, this.w, this.y + this.h) : null;
+      if (spring) {
+        // Landed on a bounce pad — launch back up instead of stopping.
+        this.vy = -spring.bounce;
+        this.onGround = false;
+        this.airJumpsLeft = P.MAX_AIR_JUMPS;
+        this.landTimer = 0.1;
+      } else {
+        if (!wasOnGround) this.landTimer = 0.12; // squash pulse on touchdown
+        this.vy = 0;
+        this.airJumpsLeft = P.MAX_AIR_JUMPS; // landing refills the mid-air jump
+        this._rememberSafeSpot();
+      }
     }
     if (hitY.hitTop) this.vy = 0;
 

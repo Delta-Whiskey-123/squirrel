@@ -26,92 +26,71 @@ const Physics = {
   COYOTE_TIME:     0.12,
   JUMP_BUFFER:     0.15,
   VARIABLE_JUMP:   true,   // releasing jump early halves upward velocity
+  SPRING_VELOCITY: 1150,   // upward launch a spring gives (px/s); ~7-tile bounce
 
   TILE: 48,
 };
 
-/* Move an AABB by (dx, dy) through the solid tiles of `level`, one axis at a
-   time. Mutates `box` (needs x, y, w, h). Returns collision flags so the
-   player can know when it landed, hit a ceiling, or touched a wall.
+/* Move an AABB by (dx, dy) and resolve it against the level, one axis at a time
+   (X then Y — the classic trick that stops the box catching on seams). Mutates
+   `box` (needs x, y, w, h) and returns which sides were hit.
 
-   `level.isSolidAt(px, py)` answers whether the world pixel is inside a solid
-   tile. Keeping the query pixel-based keeps this solver independent of how the
-   level stores its tiles. */
+   The level exposes:
+     leftWall, rightWall   world-x bounds the box can't pass
+     floorTopY             a full-width solid ground band (blocks downward only)
+     solids                array of solid rects {x, y, w, h} (full AABB)
+   This lets platforms and terrain sit at any position, not just a tile grid. */
 function moveAndCollide(box, dx, dy, level) {
   const result = { hitLeft: false, hitRight: false, hitTop: false, hitBottom: false };
+  const solids = level.solids || [];
+
+  // A `oneway` rect (a floating platform) is solid only from above — you jump
+  // up through it and land on top. Terrain rects are fully solid.
 
   // --- Horizontal ---
   if (dx !== 0) {
     box.x += dx;
-    if (dx > 0) {
-      // Moving right: check the right edge.
-      const right = box.x + box.w;
-      if (solidColumn(level, right, box.y, box.h)) {
-        const tileLeft = Math.floor(right / Physics.TILE) * Physics.TILE;
-        box.x = tileLeft - box.w;
-        result.hitRight = true;
-      }
-    } else {
-      const left = box.x;
-      if (solidColumn(level, left, box.y, box.h)) {
-        const tileRight = Math.floor(left / Physics.TILE) * Physics.TILE + Physics.TILE;
-        box.x = tileRight;
-        result.hitLeft = true;
-      }
+    if (box.x < level.leftWall) { box.x = level.leftWall; result.hitLeft = true; }
+    if (box.x + box.w > level.rightWall) { box.x = level.rightWall - box.w; result.hitRight = true; }
+    for (const r of solids) {
+      if (r.oneway) continue;                 // pass through the sides of platforms
+      if (!overlaps(box, r)) continue;
+      if (dx > 0) { box.x = r.x - box.w; result.hitRight = true; }
+      else        { box.x = r.x + r.w;   result.hitLeft = true; }
     }
   }
 
   // --- Vertical ---
   if (dy !== 0) {
+    const prevBottom = box.y + box.h;         // where the feet were before moving
     box.y += dy;
     if (dy > 0) {
-      // Falling: check the bottom edge. Rest on the *highest* solid surface the
-      // bottom edge touches — which may be a tile top (grid-aligned) or the
-      // free-standing floor band, so ask the level rather than assuming a grid.
-      const bottom = box.y + box.h;
+      // Falling: rest on the highest surface the box now overlaps (a rect top or
+      // the floor band). A one-way platform only catches us if our feet were at
+      // or above its top before this step (i.e. we came down onto it).
       let surface = Infinity;
-      for (const x of spanSamples(box.x, box.w)) {
-        if (level.isSolidAt(x, bottom)) surface = Math.min(surface, level.surfaceYAt(x, bottom));
+      if (box.y + box.h > level.floorTopY) surface = level.floorTopY;
+      for (const r of solids) {
+        if (!overlaps(box, r)) continue;
+        if (r.oneway && prevBottom > r.y + 1) continue;
+        surface = Math.min(surface, r.y);
       }
-      if (surface !== Infinity) {
-        box.y = surface - box.h;
-        result.hitBottom = true;
-      }
+      if (surface !== Infinity) { box.y = surface - box.h; result.hitBottom = true; }
     } else {
-      const top = box.y;
-      if (solidRow(level, top, box.x, box.w)) {
-        const tileBottom = Math.floor(top / Physics.TILE) * Physics.TILE + Physics.TILE;
-        box.y = tileBottom;
-        result.hitTop = true;
+      // Rising: stop under the lowest solid underside; one-way platforms don't
+      // block us going up.
+      let ceiling = -Infinity;
+      for (const r of solids) {
+        if (r.oneway) continue;
+        if (overlaps(box, r)) ceiling = Math.max(ceiling, r.y + r.h);
       }
+      if (ceiling !== -Infinity) { box.y = ceiling; result.hitTop = true; }
     }
   }
 
   return result;
 }
 
-// Is any solid tile touching the vertical segment x=px, y in [py, py+h]?
-// Sample top, middle-ish, and bottom so tall boxes can't slip past a tile.
-function solidColumn(level, px, py, h) {
-  const ys = spanSamples(py, h);
-  for (const y of ys) if (level.isSolidAt(px, y)) return true;
-  return false;
-}
-
-// Is any solid tile touching the horizontal segment y=py, x in [px, px+w]?
-function solidRow(level, py, px, w) {
-  const xs = spanSamples(px, w);
-  for (const x of xs) if (level.isSolidAt(x, py)) return true;
-  return false;
-}
-
-// Sample points along a span of length `len` starting at `start`, spaced so no
-// gap exceeds one tile. Always includes both ends (inset by 1px to avoid
-// catching the exact adjacent tile edge).
-function spanSamples(start, len) {
-  const out = [start + 1];
-  const step = Physics.TILE;
-  for (let d = step; d < len; d += step) out.push(start + d);
-  out.push(start + len - 1);
-  return out;
+function overlaps(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }

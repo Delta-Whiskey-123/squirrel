@@ -26,7 +26,7 @@
   resize();
 
   // --- World ---
-  const level = new Level(TEST_LEVEL);
+  const level = new Level();
   const player = new Player(level);
   const camera = new Camera(VIEW_W, VIEW_H);
   camera.snapTo(level, player);
@@ -45,7 +45,6 @@
 
   function startPlaying() {
     player.reset();
-    level.resetExit();
     camera.snapTo(level, player);
     Input.clearAll();  // drop any key state left over from the menus
     screen = 'playing';
@@ -93,14 +92,6 @@
       startPlaying();
       return;
     }
-    // DEV/testing shortcut: press End to skip near the exit hut. Remove before
-    // release — a child should never reach the exit this way.
-    if (e.code === 'End' && screen === 'playing') {
-      player.x = level.exitDoorX - 320;
-      player.y = level.floorTopY - player.h;
-      player.vx = player.vy = 0;
-      camera.snapTo(level, player);
-    }
   });
 
   // --- Fixed-timestep loop ---
@@ -125,8 +116,6 @@
         Input.update(STEP);
         player.update(STEP);
         camera.update(level, player, STEP);
-        // Door opens as we near it; finish once we've fully stepped inside.
-        if (level.updateExit(player, STEP)) { screen = 'complete'; break; }
         acc -= STEP;
       }
     }
