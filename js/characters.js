@@ -184,8 +184,89 @@ function drawBlueRabbit(ctx, cx, feetY, s, o) {
   ctx.restore();
 }
 
+// Grey Ted Ted — the grey rabbit. Same build as Blue, but neutral grey, brown
+// oval eyes, a single brown triangle for the nose/mouth, and longer ears that
+// flop much harder: the droop is amplified and capped at ~160° so a jump swings
+// them nearly straight down, and the horizontal sway is exaggerated too.
+function drawGreyRabbit(ctx, cx, feetY, s, o) {
+  o = o || {};
+  const face = o.face || 0, leg = o.leg || 0, sq = o.sq || 1, t = o.t || 0;
+  const GREY = '#AEB2B4', OUT = '#3C4247', BROWN = '#6B4A2C', EARIN = '#D2D6D8', BELLY = '#C6CACC';
+
+  ctx.save();
+  ctx.translate(cx, feetY);
+  ctx.scale(1 / Math.sqrt(sq), sq);
+  ctx.scale(s, s);
+  ctx.rotate(face * 0.05);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const hy = -40;
+
+  ctx.fillStyle = 'rgba(40,25,15,0.16)';
+  ctx.beginPath(); ctx.ellipse(0, 1, 18, 4.5, 0, 0, 7); ctx.fill();
+
+  ctx.fillStyle = GREY; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+  [[-8, leg], [8, -leg]].forEach(([lx, dy]) => { _rr(ctx, lx - 4, -11 + dy, 8, 12 - dy, 3.5); ctx.fill(); ctx.stroke(); });
+  ctx.fillStyle = GREY; _rr(ctx, -13, -27, 26, 20, 9); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = BELLY; ctx.beginPath(); ctx.ellipse(0, -15, 7.5, 7, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = GREY;
+  [-13, 13].forEach((ax) => { ctx.beginPath(); ctx.ellipse(ax, -20, 4.5, 6, 0, 0, 7); ctx.fill(); ctx.stroke(); });
+
+  // Long floppy ears. Droop amplified and capped at ~160°; sway exaggerated.
+  const droop = (o.earDroop || 0) * 4.5, sway = (o.earSway || 0) * 1.7;
+  let ang = 0.26 + Math.sin(t * 2.4) * 0.07 + Math.abs(leg) * 0.014 + droop;
+  if (ang > 2.79) ang = 2.79;
+  if (ang < 0.05) ang = 0.05;
+  [-1, 1].forEach((side) => {
+    ctx.save();
+    ctx.translate(side * 5, hy - 9);
+    ctx.rotate(sway);
+    ctx.scale(side, 1);
+    ctx.rotate(ang);
+    ctx.fillStyle = GREY; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-4, 2);
+    ctx.bezierCurveTo(-8, -16, -6, -32, 3, -38);
+    ctx.bezierCurveTo(12, -41, 14, -30, 7, -26);
+    ctx.bezierCurveTo(4, -20, 4, -9, 4, 2);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = EARIN;
+    ctx.beginPath();
+    ctx.moveTo(-1, -2);
+    ctx.bezierCurveTo(-4, -16, -3, -29, 3, -33);
+    ctx.bezierCurveTo(8, -35, 8, -27, 4.5, -23);
+    ctx.bezierCurveTo(2, -16, 2, -9, 1.5, -2);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  });
+
+  ctx.fillStyle = GREY; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(0, hy, 13.5, 14.5, 0, 0, 7); ctx.fill(); ctx.stroke();
+
+  // Brown oval eyes.
+  const ex = face * 1.2;
+  ctx.fillStyle = BROWN;
+  [-6.9, 6.9].forEach((dx) => {
+    ctx.beginPath(); ctx.ellipse(dx + ex, hy - 4, 2.4, 3.2, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc(dx + ex - 0.8, hy - 5.2, 0.8, 0, 7); ctx.fill();
+    ctx.fillStyle = BROWN;
+  });
+
+  // Single brown triangle: the whole nose/mouth.
+  ctx.fillStyle = BROWN;
+  ctx.beginPath();
+  ctx.moveTo(-3.6, hy + 2); ctx.lineTo(3.6, hy + 2); ctx.lineTo(0, hy + 9);
+  ctx.closePath(); ctx.fill();
+
+  // Faint cheeks.
+  ctx.fillStyle = 'rgba(90,90,95,0.22)';
+  [-8.5, 8.5].forEach((c) => { ctx.beginPath(); ctx.ellipse(c, hy + 3, 2.4, 1.6, 0, 0, 7); ctx.fill(); });
+
+  ctx.restore();
+}
+
 // The roster.
 const CHARACTERS = [
   { id: 'yellow', name: 'Yellow Ted Ted', locked: false, draw: drawLion },
   { id: 'blue',   name: 'Blue Ted Ted',   locked: false, draw: drawBlueRabbit },
+  { id: 'grey',   name: 'Grey Ted Ted',   locked: false, draw: drawGreyRabbit },
 ];
