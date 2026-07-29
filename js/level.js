@@ -79,11 +79,16 @@ class Level {
     [[3050, 300, 140], [3140, 185, 140], [3050, 70, 140], [3140, -45, 140], [3060, -175, 160]]
       .forEach(([x, y, w]) => plat(x, y, w, 'step'));
 
+    // A second orange platform above the launch-platform spring — the spring
+    // (at ~X45) bounces you straight up onto it. Sat a little below the apex so
+    // you land comfortably, and wide so a slightly-drifting bounce still catches.
+    this.solids.push({ x: 3300, y: -545, w: 320, h: 18, kind: 'launch', oneway: true });
+
     // Springs (bounce pads). y is the surface top the pad rides on.
     const B = Physics.SPRING_VELOCITY;
     this.springs.push({ x: 972, y: profileTopAt(988), w: 34, bounce: B });    // ~X13, ground
     this.springs.push({ x: 5072, y: profileTopAt(5088), w: 34, bounce: B });  // ~X65, ground
-    this.springs.push({ x: 3452, y: -257, w: 34, bounce: B });               // ~X45, on the launch platform
+    this.springs.push({ x: 3452, y: -257, w: 34, bounce: B, vertical: true }); // ~X45, on the launch platform
   }
 
   // Is the box's feet resting on a spring? (called on landing) → returns it.

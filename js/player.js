@@ -156,8 +156,10 @@ class Player {
     if (hitY.hitBottom) {
       const spring = this.level.springAt ? this.level.springAt(this.x, this.w, this.y + this.h) : null;
       if (spring) {
-        // Landed on a bounce pad — launch back up instead of stopping.
+        // Landed on a bounce pad — launch back up instead of stopping. A
+        // `vertical` pad also cancels horizontal speed so you pop straight up.
         this.vy = -spring.bounce;
+        if (spring.vertical) this.vx = 0;
         this.onGround = false;
         this.airJumpsLeft = P.MAX_AIR_JUMPS;
         this.landTimer = 0.1;
