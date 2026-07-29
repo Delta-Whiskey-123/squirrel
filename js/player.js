@@ -37,6 +37,9 @@ class Player {
     this.walkPhase = 0;
     this.landTimer = 0;
 
+    // Which club member we're playing as (chosen at the select screen).
+    this.character = CHARACTERS[0];
+
     // Respawn: remember the last spot we stood safely, and count down when we
     // fall out of the world.
     this.lastSafe = { x: level.spawn.x, y: level.spawn.y };
@@ -192,100 +195,8 @@ class Player {
     if (this.landTimer > 0) sq = 1 - 0.16 * (this.landTimer / 0.12);
     if (this.onGround && !moving) sq += Math.sin(this.animTime * 3) * 0.02;
 
-    this._drawLion(ctx, cx, feetY, 1, { face: this.facing, leg, sq });
+    this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq });
   }
 
-  // The yellow lion, drawn from canvas primitives. Local space has the feet at
-  // (0,0) and grows upward; `s` scales, `face` (-1/1) leans + shifts the eyes,
-  // `leg` swings the legs, `sq` is the squash/stretch factor about the feet.
-  _drawLion(ctx, cx, feetY, s, o) {
-    const face = o.face || 0, leg = o.leg || 0, sq = o.sq || 1;
-    const MANE = '#E4A72C', FACE = '#F3E3BE', OUT = '#3B2A1B',
-          INK = '#2A1D12', EARIN = '#EBD09A', LINE = '#B9831C';
-    const rr = (x, y, w, h, r) => {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + h, r);
-      ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r);
-      ctx.arcTo(x, y, x + w, y, r);
-      ctx.closePath();
-    };
-
-    ctx.save();
-    ctx.translate(cx, feetY);
-    ctx.scale(1 / Math.sqrt(sq), sq);     // squash/stretch about the feet
-    ctx.scale(s, s);
-    ctx.rotate(face * 0.05);
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    const hy = -40;
-
-    // Ground shadow.
-    ctx.fillStyle = 'rgba(40,25,15,0.16)';
-    ctx.beginPath(); ctx.ellipse(0, 1, 20, 4.5, 0, 0, 7); ctx.fill();
-
-    // Legs.
-    ctx.fillStyle = MANE; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
-    [[-8, leg], [8, -leg]].forEach(([lx, dy]) => { rr(lx - 4, -11 + dy, 8, 12 - dy, 3.5); ctx.fill(); ctx.stroke(); });
-
-    // Body + belly patch.
-    ctx.fillStyle = MANE; rr(-13, -27, 26, 20, 9); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = FACE; ctx.beginPath(); ctx.ellipse(0, -15, 7.5, 7, 0, 0, 7); ctx.fill();
-
-    // Arms.
-    ctx.fillStyle = MANE;
-    [-13, 13].forEach((ax) => { ctx.beginPath(); ctx.ellipse(ax, -20, 4.5, 6, 0, 0, 7); ctx.fill(); ctx.stroke(); });
-
-    // Ruffled mane: a base circle plus a ring of overlapping petals.
-    ctx.fillStyle = MANE; ctx.beginPath(); ctx.arc(0, hy, 17, 0, 7); ctx.fill();
-    ctx.strokeStyle = LINE; ctx.lineWidth = 1.5;
-    for (let i = 0; i < 13; i++) {
-      const a = i / 13 * Math.PI * 2;
-      ctx.fillStyle = MANE;
-      ctx.beginPath(); ctx.arc(Math.cos(a) * 16, hy + Math.sin(a) * 16, 9, 0, 7); ctx.fill(); ctx.stroke();
-    }
-
-    // Ears peeking through.
-    [-11, 11].forEach((ex) => {
-      ctx.fillStyle = MANE; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(ex, hy - 15, 6, 0, 7); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = EARIN; ctx.beginPath(); ctx.arc(ex, hy - 14, 3, 0, 7); ctx.fill();
-    });
-
-    // Face.
-    ctx.fillStyle = FACE; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, hy, 14.5, 0, 7); ctx.fill(); ctx.stroke();
-
-    // Eyes (15% wider than the mockup: +-6 -> +-6.9), shifted toward facing.
-    const ex = face * 1.3;
-    ctx.fillStyle = INK;
-    [-6.9, 6.9].forEach((dx) => {
-      ctx.beginPath(); ctx.arc(dx + ex, hy - 1, 2.5, 0, 7); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(dx + ex - 0.7, hy - 1.8, 0.8, 0, 7); ctx.fill();
-      ctx.fillStyle = INK;
-    });
-
-    // Stitched nose + thread.
-    ctx.fillStyle = INK;
-    ctx.beginPath();
-    ctx.moveTo(-3.2, hy + 3); ctx.lineTo(3.2, hy + 3);
-    ctx.quadraticCurveTo(2.4, hy + 7.5, 0, hy + 8.5);
-    ctx.quadraticCurveTo(-2.4, hy + 7.5, -3.2, hy + 3);
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.moveTo(0, hy + 8.5); ctx.lineTo(0, hy + 12.5); ctx.stroke();
-
-    // Soft smile.
-    ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.arc(-2.4, hy + 11.5, 2.6, -0.2, 1.5); ctx.stroke();
-    ctx.beginPath(); ctx.arc(2.4, hy + 11.5, 2.6, 1.64, 3.34); ctx.stroke();
-
-    // Freckles.
-    ctx.fillStyle = 'rgba(60,40,20,0.5)';
-    [[-9, hy + 7], [-11, hy + 9], [9, hy + 7], [11, hy + 9]].forEach(([fx, fy]) => {
-      ctx.beginPath(); ctx.arc(fx, fy, 0.7, 0, 7); ctx.fill();
-    });
-
-    ctx.restore();
-  }
+  setCharacter(c) { this.character = c; }
 }

@@ -33,24 +33,42 @@
   Input.attach();
 
   // --- Screen state ---
-  // 'instructions' shows the controls card and waits for Enter; 'playing' runs
-  // the game; 'complete' is the placeholder finish screen after the exit hut.
-  // The full state machine (splash/select/hub/...) arrives in M4.
-  let screen = 'instructions';
-  let blink = 0; // drives the gentle pulse on the prompts
+  // 'select' -> 'instructions' -> 'playing' -> 'complete'. Select picks the
+  // character; instructions shows the controls; complete is the finish screen.
+  // The full state machine (splash/hub/...) arrives in M4.
+  let screen = 'select';
+  let blink = 0;       // drives the gentle pulse on the prompts
+  let selIndex = 0;    // highlighted character in the select row
+  let lockShake = 0;   // brief wobble when a locked character is confirmed
 
   function startPlaying() {
     player.reset();
     level.resetExit();
     camera.snapTo(level, player);
+    Input.clearAll();  // drop any key state left over from the menus
     screen = 'playing';
   }
 
-  const ENTER = (c) => c === 'Enter' || c === 'NumpadEnter';
+  const CONFIRM = (c) => c === 'Enter' || c === 'NumpadEnter' || c === 'Space';
+  const LEFT = (c) => c === 'ArrowLeft' || c === 'KeyA';
+  const RIGHT = (c) => c === 'ArrowRight' || c === 'KeyD';
+
   window.addEventListener('keydown', (e) => {
-    if (ENTER(e.code) && (screen === 'instructions' || screen === 'complete')) {
+    if (screen === 'select') {
+      if (LEFT(e.code))  { e.preventDefault(); selIndex = Math.max(0, selIndex - 1); }
+      else if (RIGHT(e.code)) { e.preventDefault(); selIndex = Math.min(CHARACTERS.length - 1, selIndex + 1); }
+      else if (CONFIRM(e.code)) {
+        e.preventDefault();
+        const c = CHARACTERS[selIndex];
+        if (c.locked) lockShake = 0.35;               // can't pick this one yet
+        else { player.setCharacter(c); screen = 'instructions'; }
+      }
+      return;
+    }
+    if (CONFIRM(e.code) && (screen === 'instructions' || screen === 'complete')) {
       e.preventDefault();
       startPlaying();
+      return;
     }
     // DEV/testing shortcut: press End to skip near the exit hut. Remove before
     // release — a child should never reach the exit this way.
@@ -76,6 +94,7 @@
     last = now;
     if (dt > MAX_FRAME) dt = MAX_FRAME;
     blink += dt;
+    if (lockShake > 0) lockShake -= dt;
 
     if (!paused && screen === 'playing') {
       acc += dt;
@@ -101,7 +120,9 @@
     level.draw(ctx, camera.x, camera.y, VIEW_W, VIEW_H);
     player.draw(ctx, camera.x, camera.y);
 
-    if (screen === 'instructions') {
+    if (screen === 'select') {
+      drawSelect();
+    } else if (screen === 'instructions') {
       drawInstructions();
     } else if (screen === 'complete') {
       drawComplete();
@@ -109,6 +130,72 @@
       ctx.fillStyle = 'rgba(20,10,40,0.45)';
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
+  }
+
+  // Character select: a big animated preview of the highlighted friend, with a
+  // row of choosable slots below. Left/Right highlights, Space/Enter confirms.
+  function drawSelect() {
+    ctx.fillStyle = 'rgba(20,10,40,0.55)';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    const pw = 720, ph = 470, px = (VIEW_W - pw) / 2, py = (VIEW_H - ph) / 2;
+    roundRect(px, py, pw, ph, 28);
+    ctx.fillStyle = '#fff7ec'; ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#e8622c';
+    ctx.font = '700 40px system-ui, sans-serif';
+    ctx.fillText('Choose your friend', VIEW_W / 2, py + 46);
+
+    const sel = CHARACTERS[selIndex];
+
+    // Big animated preview (gentle idle breathing).
+    const sq = 1 + Math.sin(blink * 3) * 0.03;
+    sel.draw(ctx, VIEW_W / 2, py + 250, 2.6, { face: 0, leg: 0, sq });
+
+    ctx.fillStyle = sel.locked ? '#8a7f72' : '#2f2233';
+    ctx.font = '700 32px system-ui, sans-serif';
+    ctx.fillText(sel.name, VIEW_W / 2, py + 288);
+
+    // Row of choosable slots.
+    const sw = 150, sh = 100, gap = 48;
+    const total = CHARACTERS.length * sw + (CHARACTERS.length - 1) * gap;
+    const row = VIEW_W / 2 - total / 2;
+    CHARACTERS.forEach((c, i) => {
+      let bx = row + i * (sw + gap);
+      const by = py + 316;
+      if (c.locked && i === selIndex && lockShake > 0) bx += Math.sin(lockShake * 50) * 4;
+
+      roundRect(bx, by, sw, sh, 16);
+      ctx.fillStyle = '#f3e7d2'; ctx.fill();
+      if (i === selIndex) { ctx.lineWidth = 5; ctx.strokeStyle = c.locked ? '#9aa6bf' : '#3a8f2e'; }
+      else { ctx.lineWidth = 3; ctx.strokeStyle = '#d8c9ad'; }
+      ctx.stroke();
+
+      c.draw(ctx, bx + sw / 2, by + sh - 14, 0.82, { face: 0, leg: 0, sq: 1 });
+      if (c.locked) drawLock(bx + sw - 22, by + 16);
+    });
+
+    // Prompt.
+    const pulse = 0.6 + 0.4 * Math.abs(Math.sin(blink * 2.2));
+    ctx.globalAlpha = pulse;
+    if (sel.locked) {
+      ctx.fillStyle = '#9aa6bf'; ctx.font = '700 26px system-ui, sans-serif';
+      ctx.fillText('Coming soon', VIEW_W / 2, py + ph - 30);
+    } else {
+      ctx.fillStyle = '#3a8f2e'; ctx.font = '700 28px system-ui, sans-serif';
+      ctx.fillText('Press SPACE to choose', VIEW_W / 2, py + ph - 30);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // A small padlock badge for locked character slots.
+  function drawLock(x, y) {
+    ctx.strokeStyle = '#2f2233'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(x, y, 4.5, Math.PI, 0); ctx.stroke();
+    roundRect(x - 7, y, 14, 11, 2.5);
+    ctx.fillStyle = '#6b6472'; ctx.fill(); ctx.stroke();
   }
 
   // Placeholder finish screen (the badge celebration proper comes in a later
