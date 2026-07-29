@@ -124,10 +124,11 @@ function drawBlueRabbit(ctx, cx, feetY, s, o) {
   [-13, 13].forEach((ax) => { ctx.beginPath(); ctx.ellipse(ax, -20, 4.5, 6, 0, 0, 7); ctx.fill(); ctx.stroke(); });
 
   // Ears (drawn before the head so it overlaps their bases). Angle = outward
-  // splay + idle sway + a walk flap + flop from squash/stretch: they lift on a
-  // jump (sq>1) and splay out on landing (sq<1).
-  const flop = (1 - sq) * 1.3;
-  const ang = 0.12 + Math.sin(t * 2.2) * 0.05 + Math.abs(leg) * 0.012 + flop;
+  // splay + idle sway + a small walk flap + the spring-driven droop from the
+  // player's ear physics (a jump drags the tips down; they lag and settle).
+  const droop = o.earDroop || 0;
+  let ang = 0.12 + Math.sin(t * 2.2) * 0.05 + Math.abs(leg) * 0.012 + droop;
+  if (ang < 0.02) ang = 0.02;         // never cross inward past upright
   [-1, 1].forEach((side) => {
     ctx.save();
     ctx.translate(side * 5, hy - 9);

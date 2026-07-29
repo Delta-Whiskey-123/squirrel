@@ -36,6 +36,9 @@ class Player {
     this.animTime = 0;
     this.walkPhase = 0;
     this.landTimer = 0;
+    // Floppy-ear secondary motion (a damped spring; used by eared characters).
+    this.earDroop = 0;
+    this.earVel = 0;
 
     // Which club member we're playing as (chosen at the select screen).
     this.character = CHARACTERS[0];
@@ -61,6 +64,8 @@ class Player {
     this.coyote = 0;
     this.respawnTimer = 0;
     this.airJumpsLeft = Physics.MAX_AIR_JUMPS;
+    this.earDroop = 0;
+    this.earVel = 0;
     this.lastSafe = { x: this.level.spawn.x, y: this.level.spawn.y };
   }
 
@@ -157,6 +162,13 @@ class Player {
     // Leg swing advances with ground speed, so the stride matches the movement.
     if (this.onGround && Math.abs(this.vx) > 12) this.walkPhase += Math.abs(this.vx) * dt * 0.055;
 
+    // Floppy-ear secondary motion: a damped spring whose rest target follows the
+    // head's vertical speed. Rising (a jump, vy<0) drags the ear tips down; the
+    // spring lags and then settles. Grounded (vy 0) the ears return upright.
+    const earTarget = Math.max(-0.3, Math.min(1.1, -this.vy * 0.00125));
+    this.earVel += (120 * (earTarget - this.earDroop) - 16 * this.earVel) * dt;
+    this.earDroop += this.earVel * dt;
+
     // --- Fell out of the world? Begin a gentle respawn. ---
     if (this.y > this.level.pixelH + Physics.TILE) {
       this.respawnTimer = 0.5; // half a second, per the design rules
@@ -195,7 +207,7 @@ class Player {
     if (this.landTimer > 0) sq = 1 - 0.16 * (this.landTimer / 0.12);
     if (this.onGround && !moving) sq += Math.sin(this.animTime * 3) * 0.02;
 
-    this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq, t: this.animTime });
+    this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq, t: this.animTime, earDroop: this.earDroop });
   }
 
   setCharacter(c) { this.character = c; }
