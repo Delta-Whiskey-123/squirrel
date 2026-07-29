@@ -76,7 +76,7 @@ class Level {
     // platforms climbing up to it, so it can be reached in a few alternating
     // hops (each ~130px — a single jump).
     this.solids.push({ x: 2730, y: -257, w: 780, h: 18, kind: 'launch', oneway: true });
-    [[3050, 300, 140], [3140, 185, 140], [3050, 70, 140], [3140, -45, 140], [3060, -175, 160]]
+    [[2990, 300, 130], [3140, 185, 140], [3050, 70, 140], [3140, -45, 140], [3060, -175, 160]]
       .forEach(([x, y, w]) => plat(x, y, w, 'step'));
 
     // A second orange platform above the launch-platform spring — the spring
