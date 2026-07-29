@@ -23,7 +23,8 @@
       "Bash(git commit -q -m 'Fix overlapping platforms before the zig-zag *)",
       "Bash(git commit -q -m 'Bridge the high route so it can be hopped across *)",
       "Bash(git commit -q -m 'Add three-tier collectable gems \\(A/B/C\\) with a count HUD *)",
-      "Bash(git commit -q -m 'Add fruit reference images; update permission allowlist *)"
+      "Bash(git commit -q -m 'Add fruit reference images; update permission allowlist *)",
+      "Bash(git commit -q -m 'Add Grey Ted Ted as a third playable rabbit character *)"
     ]
   }
 }
