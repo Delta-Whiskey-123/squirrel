@@ -57,6 +57,12 @@ class Level {
     this.springs = [];
     this._build();
 
+    // Exit hut: sits just before the X101 right wall. Walking into the doorway
+    // ends the level (see updateExit).
+    this.exitDoorX = 7800;
+    this.doorOpen = 0;
+    this.exitOpenDist = 180;
+
     // Collectable gems, three tiers: A (gold, easy low path), B (silver, mid
     // platforms), C (bronze, high route). They float just above their surface.
     this.gems = [];
@@ -136,6 +142,18 @@ class Level {
     return null;
   }
 
+  // Advance the door open/shut from the player's proximity, and report whether
+  // the player has fully walked into the open doorway.
+  updateExit(player, dt) {
+    const target = player.cx > this.exitDoorX - this.exitOpenDist ? 1 : 0;
+    const rate = dt / 0.30;
+    if (this.doorOpen < target) this.doorOpen = Math.min(target, this.doorOpen + rate);
+    else if (this.doorOpen > target) this.doorOpen = Math.max(target, this.doorOpen - rate);
+    return this.doorOpen > 0.6 && player.cx >= this.exitDoorX;
+  }
+
+  resetExit() { this.doorOpen = 0; }
+
   // --- Rendering ---
   draw(ctx, camX, camY, viewW, viewH) {
     this._drawFloor(ctx, camX, camY, viewW, viewH);
@@ -145,7 +163,85 @@ class Level {
     }
     for (const s of this.springs) this._drawSpring(ctx, s.x + s.w / 2, s.y - camY, camX);
     this._drawGems(ctx, camX, camY);
+    this._drawExit(ctx, camX, camY);
     this._drawBoundary(ctx, camX, camY, viewH);
+  }
+
+  // Brown hut with two small windows and an arched rainbow door that swings
+  // open as the player approaches. The door is scaled 1.3x for hut size.
+  _drawExit(ctx, camX, camY) {
+    const sx = this.exitDoorX - camX;
+    if (sx < -260 || sx > 1240) return;
+    const OUT = '#2f2233', SCALE = 1.3;
+
+    ctx.save();
+    ctx.translate(sx, this.floorTopY - camY);
+    ctx.scale(SCALE, SCALE);
+
+    // Body.
+    const bw = 176, bh = 150, bx = -bw / 2, by = -bh;
+    ctx.fillStyle = '#8a5a2b'; ctx.fillRect(bx, by, bw, bh);
+    ctx.lineWidth = 4; ctx.strokeStyle = OUT;
+    ctx.strokeRect(bx + 2, by + 2, bw - 4, bh - 4);
+
+    // Roof.
+    ctx.beginPath();
+    ctx.moveTo(bx - 16, by + 4);
+    ctx.lineTo(0, by - 66);
+    ctx.lineTo(bx + bw + 16, by + 4);
+    ctx.closePath();
+    ctx.fillStyle = '#6b3f1c'; ctx.fill();
+    ctx.lineWidth = 4; ctx.strokeStyle = OUT; ctx.stroke();
+
+    // Two windows.
+    const winY = by + 26, ws = 30;
+    for (const wx of [-62, 32]) {
+      ctx.fillStyle = '#bfe3ff'; ctx.fillRect(wx, winY, ws, ws);
+      ctx.lineWidth = 3; ctx.strokeStyle = OUT;
+      ctx.strokeRect(wx + 1.5, winY + 1.5, ws - 3, ws - 3);
+      ctx.beginPath();
+      ctx.moveTo(wx + ws / 2, winY); ctx.lineTo(wx + ws / 2, winY + ws);
+      ctx.moveTo(wx, winY + ws / 2); ctx.lineTo(wx + ws, winY + ws / 2);
+      ctx.stroke();
+    }
+
+    // Arched rainbow door, hinged on the left. Narrows as it opens.
+    const dw = 52, dh = 84, dx = -dw / 2, dyTop = -dh, r = dw / 2;
+    const archPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(dx, 0);
+      ctx.lineTo(dx, dyTop + r);
+      ctx.arc(0, dyTop + r, r, Math.PI, 0);
+      ctx.lineTo(dx + dw, 0);
+      ctx.closePath();
+    };
+
+    ctx.save();
+    archPath();
+    ctx.clip();
+    ctx.fillStyle = '#241634';
+    ctx.fillRect(dx - 2, dyTop - 2, dw + 4, dh + 4);
+    const panelW = dw * (1 - this.doorOpen);
+    if (panelW > 0.5) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(dx, dyTop - 2, panelW, dh + 4);
+      ctx.clip();
+      const bands = ['#e23b2e', '#f0862a', '#f5d02a', '#4caf3f', '#2f7fd6', '#7a4bc4'];
+      const stripeW = dw / bands.length;
+      for (let i = 0; i < bands.length; i++) {
+        ctx.fillStyle = bands[i];
+        ctx.fillRect(dx + i * stripeW, dyTop - 2, stripeW + 1, dh + 4);
+      }
+      ctx.restore();
+      ctx.fillStyle = OUT;
+      ctx.fillRect(dx + panelW - 2, dyTop, 2, dh);
+    }
+    ctx.restore();
+
+    archPath();
+    ctx.lineWidth = 4; ctx.strokeStyle = OUT; ctx.stroke();
+    ctx.restore();
   }
 
   _drawGems(ctx, camX, camY) {

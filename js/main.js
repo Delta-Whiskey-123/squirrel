@@ -51,6 +51,7 @@
     Input.clearAll();  // drop any key state left over from the menus
     gems = { A: 0, B: 0, C: 0 };
     level.resetGems();
+    level.resetExit();
     screen = 'playing';
   }
 
@@ -131,6 +132,8 @@
         player.update(STEP);
         camera.update(level, player, STEP);
         collectGems();
+        // Walked into the hut? End the level and return to character select.
+        if (level.updateExit(player, STEP)) { screen = 'select'; break; }
         acc -= STEP;
       }
     }
