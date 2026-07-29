@@ -36,9 +36,12 @@ class Player {
     this.animTime = 0;
     this.walkPhase = 0;
     this.landTimer = 0;
-    // Floppy-ear secondary motion (a damped spring; used by eared characters).
+    // Floppy-ear secondary motion (damped springs; used by eared characters):
+    // earDroop trails vertical motion, earSway trails horizontal motion.
     this.earDroop = 0;
     this.earVel = 0;
+    this.earSway = 0;
+    this.earSwayVel = 0;
 
     // Which club member we're playing as (chosen at the select screen).
     this.character = CHARACTERS[0];
@@ -66,6 +69,8 @@ class Player {
     this.airJumpsLeft = Physics.MAX_AIR_JUMPS;
     this.earDroop = 0;
     this.earVel = 0;
+    this.earSway = 0;
+    this.earSwayVel = 0;
     this.lastSafe = { x: this.level.spawn.x, y: this.level.spawn.y };
   }
 
@@ -169,6 +174,12 @@ class Player {
     this.earVel += (120 * (earTarget - this.earDroop) - 16 * this.earVel) * dt;
     this.earDroop += this.earVel * dt;
 
+    // Horizontal trail: the ear tips lag behind sideways motion (e.g. a sideways
+    // jump), a lighter/looser spring so it reads as a gentle sway.
+    const swayTarget = Math.max(-0.4, Math.min(0.4, -this.vx * 0.00135));
+    this.earSwayVel += (95 * (swayTarget - this.earSway) - 14 * this.earSwayVel) * dt;
+    this.earSway += this.earSwayVel * dt;
+
     // --- Fell out of the world? Begin a gentle respawn. ---
     if (this.y > this.level.pixelH + Physics.TILE) {
       this.respawnTimer = 0.5; // half a second, per the design rules
@@ -207,7 +218,7 @@ class Player {
     if (this.landTimer > 0) sq = 1 - 0.16 * (this.landTimer / 0.12);
     if (this.onGround && !moving) sq += Math.sin(this.animTime * 3) * 0.02;
 
-    this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq, t: this.animTime, earDroop: this.earDroop });
+    this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq, t: this.animTime, earDroop: this.earDroop, earSway: this.earSway });
   }
 
   setCharacter(c) { this.character = c; }
