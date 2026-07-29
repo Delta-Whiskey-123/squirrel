@@ -42,17 +42,30 @@
   let selIndex = 0;    // highlighted character in the select row
   let lockShake = 0;   // brief wobble when a locked character is confirmed
   let pauseIndex = 0;  // highlighted button in the pause menu (0 resume, 1 restart)
+  let gems = { A: 0, B: 0, C: 0 }; // collected count per tier (reset each run)
 
   function startPlaying() {
     player.reset();
     camera.snapTo(level, player);
     Input.clearAll();  // drop any key state left over from the menus
+    gems = { A: 0, B: 0, C: 0 };
+    level.resetGems();
     screen = 'playing';
   }
 
   function resumeGame() {
     Input.consumeJump(); // don't let the confirming Space fire a jump on resume
     screen = 'playing';
+  }
+
+  // Pick up any gem within a generous radius of the player's centre.
+  function collectGems() {
+    const cx = player.cx, cy = player.cy, R2 = 40 * 40;
+    for (const g of level.gems) {
+      if (g.taken) continue;
+      const dx = cx - g.x, dy = cy - g.y;
+      if (dx * dx + dy * dy < R2) { g.taken = true; gems[g.tier]++; }
+    }
   }
 
   const CONFIRM = (c) => c === 'Enter' || c === 'NumpadEnter' || c === 'Space';
@@ -116,6 +129,7 @@
         Input.update(STEP);
         player.update(STEP);
         camera.update(level, player, STEP);
+        collectGems();
         acc -= STEP;
       }
     }
@@ -132,6 +146,8 @@
     level.draw(ctx, camera.x, camera.y, VIEW_W, VIEW_H);
     player.draw(ctx, camera.x, camera.y);
 
+    if (screen === 'playing' || screen === 'pausemenu') drawHud();
+
     if (screen === 'select') {
       drawSelect();
     } else if (screen === 'instructions') {
@@ -143,6 +159,19 @@
     } else if (paused) {
       ctx.fillStyle = 'rgba(20,10,40,0.45)';
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+  }
+
+  // Top-left counter: a coin per tier with its running collected count.
+  function drawHud() {
+    let x = 20;
+    for (const tier of ['A', 'B', 'C']) {
+      drawCoin(ctx, x + 11, 26, 11, tier);
+      ctx.fillStyle = '#2f2233';
+      ctx.font = '700 22px system-ui, sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('×' + gems[tier], x + 28, 27);
+      x += 92;
     }
   }
 

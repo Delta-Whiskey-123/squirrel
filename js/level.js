@@ -34,6 +34,16 @@ function profileTopAt(x) {
   return FLOOR_TOP_Y;
 }
 
+// A simple coin, coloured by gem tier. Shared by the in-world gems and the HUD.
+const GEM_FACE = { A: '#f5c542', B: '#cfd7e0', C: '#cd7f32' };
+const GEM_RING = { A: '#c99a1e', B: '#9aa6b4', C: '#9c5f26' };
+function drawCoin(ctx, x, y, r, tier) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = GEM_FACE[tier]; ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, r * 0.55, 0, 7); ctx.lineWidth = 2; ctx.strokeStyle = GEM_RING[tier]; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x - r * 0.3, y - r * 0.32, r * 0.2, 0, 7); ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fill();
+}
+
 class Level {
   constructor() {
     this.floorTopY = FLOOR_TOP_Y;
@@ -46,7 +56,27 @@ class Level {
     this.solids = [];
     this.springs = [];
     this._build();
+
+    // Collectable gems, three tiers: A (gold, easy low path), B (silver, mid
+    // platforms), C (bronze, high route). They float just above their surface.
+    this.gems = [];
+    this._buildGems();
   }
+
+  _buildGems() {
+    const gem = (x, surfaceY, tier) => this.gems.push({ x, y: surfaceY - 26, tier, taken: false });
+    // A — gold, along the low/ground path.
+    [[350, 521], [750, 521], [2350, 521], [4400, 521], [6700, 473], [7450, 521], [1426, 187], [5526, 139]]
+      .forEach(([x, y]) => gem(x, y, 'A'));
+    // B — silver, on the mid staircase platforms.
+    [[1206, 299], [1316, 243], [3306, 251], [3526, 139], [3746, 271], [5306, 251], [5416, 195], [5746, 271]]
+      .forEach(([x, y]) => gem(x, y, 'B'));
+    // C — bronze, along the high route.
+    [[1303, -36], [1865, 89], [2346, -66], [3403, -74], [4396, -96], [4959, 46], [5403, -112], [2575, 30]]
+      .forEach(([x, y]) => gem(x, y, 'C'));
+  }
+
+  resetGems() { for (const g of this.gems) g.taken = false; }
 
   _build() {
     // Terrain hills, as solid rects filling from each raised segment down to the
@@ -114,7 +144,17 @@ class Level {
       else this._drawPlatform(ctx, r, camX, camY);
     }
     for (const s of this.springs) this._drawSpring(ctx, s.x + s.w / 2, s.y - camY, camX);
+    this._drawGems(ctx, camX, camY);
     this._drawBoundary(ctx, camX, camY, viewH);
+  }
+
+  _drawGems(ctx, camX, camY) {
+    const t = performance.now() * 0.003;
+    for (const g of this.gems) {
+      if (g.taken) continue;
+      const bob = Math.sin(t + g.x * 0.02) * 3;
+      drawCoin(ctx, g.x - camX, g.y - camY + bob, 10, g.tier);
+    }
   }
 
   _drawFloor(ctx, camX, camY, viewW, viewH) {
