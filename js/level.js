@@ -82,7 +82,7 @@ class Level {
     // A second orange platform above the launch-platform spring — the spring
     // (at ~X45) bounces you straight up onto it. Sat a little below the apex so
     // you land comfortably, and wide so a slightly-drifting bounce still catches.
-    this.solids.push({ x: 3300, y: -545, w: 320, h: 18, kind: 'launch', oneway: true });
+    this.solids.push({ x: 3430, y: -545, w: 360, h: 18, kind: 'launch', oneway: true });
 
     // Springs (bounce pads). y is the surface top the pad rides on.
     const B = Physics.SPRING_VELOCITY;
