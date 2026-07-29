@@ -33,13 +33,15 @@
   Input.attach();
 
   // --- Screen state ---
-  // 'select' -> 'instructions' -> 'playing' -> 'complete'. Select picks the
-  // character; instructions shows the controls; complete is the finish screen.
+  // 'select' -> 'instructions' -> 'playing' -> 'complete', with 'pausemenu'
+  // reachable from play via Escape. Select picks the character; instructions
+  // shows the controls; complete is the finish screen.
   // The full state machine (splash/hub/...) arrives in M4.
   let screen = 'select';
   let blink = 0;       // drives the gentle pulse on the prompts
   let selIndex = 0;    // highlighted character in the select row
   let lockShake = 0;   // brief wobble when a locked character is confirmed
+  let pauseIndex = 0;  // highlighted button in the pause menu (0 resume, 1 restart)
 
   function startPlaying() {
     player.reset();
@@ -49,11 +51,32 @@
     screen = 'playing';
   }
 
+  function resumeGame() {
+    Input.consumeJump(); // don't let the confirming Space fire a jump on resume
+    screen = 'playing';
+  }
+
   const CONFIRM = (c) => c === 'Enter' || c === 'NumpadEnter' || c === 'Space';
   const LEFT = (c) => c === 'ArrowLeft' || c === 'KeyA';
   const RIGHT = (c) => c === 'ArrowRight' || c === 'KeyD';
 
   window.addEventListener('keydown', (e) => {
+    // Escape opens/closes the pause menu during play.
+    if (e.code === 'Escape') {
+      if (screen === 'playing') { e.preventDefault(); pauseIndex = 0; screen = 'pausemenu'; }
+      else if (screen === 'pausemenu') { e.preventDefault(); resumeGame(); }
+      return;
+    }
+    if (screen === 'pausemenu') {
+      if (LEFT(e.code))  { e.preventDefault(); pauseIndex = 0; }
+      else if (RIGHT(e.code)) { e.preventDefault(); pauseIndex = 1; }
+      else if (CONFIRM(e.code)) {
+        e.preventDefault();
+        if (pauseIndex === 0) resumeGame();
+        else screen = 'select';                       // restart from character select
+      }
+      return;
+    }
     if (screen === 'select') {
       if (LEFT(e.code))  { e.preventDefault(); selIndex = Math.max(0, selIndex - 1); }
       else if (RIGHT(e.code)) { e.preventDefault(); selIndex = Math.min(CHARACTERS.length - 1, selIndex + 1); }
@@ -126,10 +149,73 @@
       drawInstructions();
     } else if (screen === 'complete') {
       drawComplete();
+    } else if (screen === 'pausemenu') {
+      drawPause();
     } else if (paused) {
       ctx.fillStyle = 'rgba(20,10,40,0.45)';
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
+  }
+
+  // The pause menu: two big buttons — Resume, or Start over (back to select).
+  // Left/Right highlights, Space/Enter confirms, Escape resumes.
+  function drawPause() {
+    ctx.fillStyle = 'rgba(20,10,40,0.55)';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    const pw = 560, ph = 300, px = (VIEW_W - pw) / 2, py = (VIEW_H - ph) / 2;
+    roundRect(px, py, pw, ph, 28);
+    ctx.fillStyle = '#fff7ec'; ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#e8622c'; ctx.font = '700 40px system-ui, sans-serif';
+    ctx.fillText('Paused', VIEW_W / 2, py + 50);
+
+    const bw = 200, bh = 130, gap = 40, by = py + 96;
+    const buttons = [
+      { label: 'Resume',     color: '#3a8f2e', icon: 'play' },
+      { label: 'Start over', color: '#2f7fd6', icon: 'restart' },
+    ];
+    buttons.forEach((b, i) => {
+      const bx = VIEW_W / 2 + (i === 0 ? -(bw + gap / 2) : gap / 2);
+      roundRect(bx, by, bw, bh, 18);
+      ctx.fillStyle = '#f3e7d2'; ctx.fill();
+      if (i === pauseIndex) { ctx.lineWidth = 5; ctx.strokeStyle = b.color; }
+      else { ctx.lineWidth = 3; ctx.strokeStyle = '#d8c9ad'; }
+      ctx.stroke();
+
+      const cx = bx + bw / 2, cyi = by + 48;
+      ctx.fillStyle = b.color; ctx.strokeStyle = b.color;
+      if (b.icon === 'play') drawPlayIcon(cx, cyi); else drawRestartIcon(cx, cyi);
+
+      ctx.fillStyle = '#2f2233'; ctx.font = '600 24px system-ui, sans-serif';
+      ctx.fillText(b.label, cx, by + bh - 28);
+    });
+
+    const pulse = 0.6 + 0.4 * Math.abs(Math.sin(blink * 2.2));
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#8a7f72'; ctx.font = '600 20px system-ui, sans-serif';
+    ctx.fillText('Esc to resume', VIEW_W / 2, py + ph - 26);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawPlayIcon(cx, cy) {
+    ctx.beginPath();
+    ctx.moveTo(cx - 13, cy - 17); ctx.lineTo(cx - 13, cy + 17); ctx.lineTo(cx + 19, cy);
+    ctx.closePath(); ctx.fill();
+  }
+
+  function drawRestartIcon(cx, cy) {
+    const r = 15, a0 = -0.9;
+    ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(cx, cy, r, a0, Math.PI * 1.35); ctx.stroke();
+    const hx = cx + r * Math.cos(a0), hy = cy + r * Math.sin(a0), tan = a0 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(hx + 9 * Math.cos(tan + 0.5), hy + 9 * Math.sin(tan + 0.5));
+    ctx.lineTo(hx + 9 * Math.cos(tan - 0.5), hy + 9 * Math.sin(tan - 0.5));
+    ctx.closePath(); ctx.fill();
   }
 
   // Character select: a big animated preview of the highlighted friend, with a
