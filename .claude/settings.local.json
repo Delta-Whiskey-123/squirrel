@@ -27,7 +27,8 @@
       "Bash(git commit -q -m 'Add Grey Ted Ted as a third playable rabbit character *)",
       "PowerShell($c = Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c.OwningProcess | Select-Object -Unique | ForEach-Object { try { Stop-Process -Id $_ -Force -ErrorAction Stop; \"stopped PID $_\" } catch {} } } else { \"nothing listening on 8765\" })",
       "PowerShell(& \"C:\\\\Users\\\\domin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-domin--claude-squirrel\\\\bacb8ea9-11eb-497b-b268-6421fce835d0\\\\scratchpad\\\\serve.ps1\")",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8765/index.html)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8765/index.html)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
