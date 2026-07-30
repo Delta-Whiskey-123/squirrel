@@ -34,8 +34,9 @@ Two controls, plus menu keys — the whole input surface for a 4-year-old is:
 | Choose / confirm (menus) | Space or Enter |
 | Pause menu | Escape |
 
-There is a dev-only **End** shortcut that skips near the exit hut (to be removed
-before release).
+There is a dev-only shortcut: during play, **type `fast`** to warp to 10 tiles
+short of the exit hut, so the end-of-game badge sequence can be reached without
+a full run. (To be removed before release.)
 
 ---
 

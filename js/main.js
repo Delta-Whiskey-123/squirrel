@@ -74,6 +74,20 @@
     screen = 'playing';
   }
 
+  // --- Dev-only shortcut (to be removed before release) ---
+  // Typing "fast" during play warps the player to 10 tiles short of the exit
+  // door, so the end-of-game sequence can be reached without a full run.
+  const DEV_WARP_CODE = 'fast';
+  const DEV_WARP_TILES = 10;
+  let devTyped = '';
+
+  function devWarpNearExit() {
+    player.x = level.exitDoorX - DEV_WARP_TILES * Physics.TILE - player.w / 2;
+    player.y = level.floorTopY - player.h;
+    player.vx = player.vy = 0;
+    camera.snapTo(level, player);
+  }
+
   // The end-of-game celebration. Triggered when the player walks out through the
   // final level's door. Snapshots the run's gem counts, starts the count-up and
   // confetti, and plays the fanfare (audio is already unlocked, as reaching the
@@ -201,6 +215,11 @@
         screen = 'select';   // straight back to character select — not a hub
       }
       return;
+    }
+    if (screen === 'playing' && e.key && e.key.length === 1) {
+      // Dev-only: watch the last few printable keys for the warp code.
+      devTyped = (devTyped + e.key.toLowerCase()).slice(-DEV_WARP_CODE.length);
+      if (devTyped === DEV_WARP_CODE) { devTyped = ''; devWarpNearExit(); return; }
     }
     if (CONFIRM(e.code) && (screen === 'instructions' || screen === 'complete')) {
       e.preventDefault();
