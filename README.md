@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.4.0** (2026-07-30)
+**Current version: v0.5.0** (2026-07-30)
 
 ---
 
@@ -41,10 +41,11 @@ before release).
 
 ## Progress summary
 
-The engine, game feel, and core level are complete with three playable characters,
-audio, and a three-tier collectable gem system. The core gameplay loop is closed:
-pick a character, run the level, collect gems, and exit via the hut. Badge
-celebration and distinct character abilities are next.
+The engine, game feel, and core level are complete with four playable characters,
+audio, a three-tier collectable gem system, and a full badge celebration on
+finishing the level. The core gameplay loop is closed end-to-end: pick a
+character, run the level, collect gems, exit via the hut, and earn the badge.
+Distinct character abilities and more levels are next.
 
 **Done**
 - Fixed-timestep (60 Hz) game loop, letterboxed 960×540 canvas, auto-pause on
@@ -66,9 +67,18 @@ celebration and distinct character abilities are next.
 - **Escape pause menu** (Resume / Start over), instant and dimmed.
 - **Three-tier collectible gems** (Gold/Silver/Bronze) scattered throughout the level,
   with a **per-tier HUD counter** (top-left) that resets each run.
-- **Synthesised WebAudio SFX** (no audio files): jump blip, land thud, and three
-  distinct per-tier collect sounds. **M key to mute**, toggle persists to localStorage.
-  Small muted icon shown when audio is off.
+- **Synthesised WebAudio SFX** (no audio files): jump blip, land thud, three
+  distinct per-tier collect sounds, and a 5-second triumphant "ta-daaa" fanfare.
+  **M key to mute**, toggle persists to localStorage. Small muted icon shown
+  when audio is off.
+- **Fourth character: Battenberg**, with a triple-jump ability (third jump
+  reaches 2× the height of the first, with a spring "boing" sound).
+- **Badge celebration screen** (`gameComplete` state): triggered when the
+  player exits through the final level's door. Dims the world, fades in gentle
+  confetti, plays the fanfare, shows a spoken-aloud headline, the earned badge
+  (PNG art with a procedural placeholder fallback if the file is missing), and
+  the run's per-tier coin counts animating up from zero with soft ticks. A
+  wordless home button appears after a beat and returns to character select.
 
 **Design rules honoured** (from the spec)
 - No failure, no lives, no score, no timer — falling gently respawns you.
@@ -76,19 +86,37 @@ celebration and distinct character abilities are next.
 - Generous, forgiving physics; no way to get stuck in a menu.
 
 **Not yet built**
-- **Award screen**: gem counts and a **coin badge** celebration on level completion
-  (currently just exits back to character select).
-- **Distinct character abilities**: Blue/Grey Ted Ted currently play identically to Yellow
-  (planned: unique movement traits or power-ups per character).
-- **More levels** and data-driven level loading; badge wall and hub world.
-- **Save system**: persist chosen character and best gem counts per level.
-- **Particle effects** (pickup pops, badge stamp, confetti).
+- **Distinct character abilities** for Blue/Grey Ted Ted: they currently play
+  identically to Yellow (Battenberg has triple-jump; planned: unique traits or
+  power-ups for the rest of the roster).
+- **More levels** and data-driven level loading; badge wall and hub world (the
+  home button currently returns to character select, not a hub — planned).
+- **Save system**: persist chosen character and best gem counts/badges earned
+  per level (explicitly deferred — each run starts fresh for now).
+- **Particle effects on pickup** (the badge screen has confetti; sparkle pops
+  on individual gem collection are still open).
 - **Pixel-art tile scenery** (hybrid art direction — swapping procedural terrain for
   the tileset in `/Tiles` by Anokolisa).
 
 ---
 
 ## Version history
+
+### v0.5.0 — Badge celebration, fanfare & fourth character (2026-07-30)
+- Added **Battenberg**, a fourth playable character with a **triple-jump**
+  ability (third jump reaches 2× the first jump's height, with a spring
+  "boing" sound effect).
+- Built the **badge celebration screen** as a distinct `gameComplete` state,
+  triggered when the player exits through the final level's door: dimmed
+  background, falling confetti, a spoken-aloud headline, the earned badge PNG
+  (`Tiles/Assets/badge.png`, procedural rosette fallback if missing), and
+  per-tier coin counts animating up from zero with soft ticks. A wordless home
+  button fades in after a beat and returns to character select. No save/progress
+  system — every run starts fresh.
+- Added a **synthesised fanfare** (`Sfx.fanfare`) and **count-up tick**
+  (`Sfx.tick`) to the audio module: a triumphant ~5-second "ta-daaa" — bright
+  pickup note into a wide, held C-major chord across four octaves with a
+  sparkle tail.
 
 ### v0.4.0 — Collectibles, audio & third character (2026-07-30)
 - Added **Grey Ted Ted**, a third character with longer, more aggressive ear flop
@@ -136,6 +164,7 @@ celebration and distinct character abilities are next.
   iterations).
 - Tag `v0.3.0` — character select + pause menu (2026-07-29).
 - Tag `v0.4.0` — collectibles, audio, third character (2026-07-30).
+- Tag `v0.5.0` — badge celebration, fanfare, fourth character (2026-07-30).
 
 ---
 
@@ -145,16 +174,17 @@ celebration and distinct character abilities are next.
 index.html            page + script load order
 style.css             full-window letterboxed canvas
 /js
-  main.js             bootstrap, game loop, screens (select/instructions/play/pause/complete)
+  main.js             bootstrap, game loop, screens (select/instructions/play/pause/gameComplete)
   input.js            keyboard state, coyote & jump-buffer timers
-  audio.js            synthesised WebAudio SFX (jump/land/collect) + mute toggle
+  audio.js            synthesised WebAudio SFX (jump/land/collect/fanfare/tick) + mute toggle
   physics.js          tuning constants + AABB collision solver
   level.js            level data, platforms, gems, exit hut, rendering
   camera.js           follow camera (horizontal dead-zone + vertical pan)
-  characters.js       the roster + procedural draw functions (Yellow/Blue/Grey Ted Ted)
-  player.js           movement, double jump, animation & ear-physics state
+  characters.js       the roster + procedural draw functions (Ted Teds + Battenberg)
+  player.js           movement, double/triple jump, animation & ear-physics state
 /data                 (reserved for data-driven levels)
 /Tiles                pixel-art tile pack (Anokolisa) — not yet wired in
+/Tiles/Assets         badge.png — the earned badge art shown on the gameComplete screen
 ```
 
 ## Credits

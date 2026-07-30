@@ -4,3 +4,6 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+
+# Local dev-server config (points at session-specific paths)
+.claude/launch.json

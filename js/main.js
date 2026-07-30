@@ -34,9 +34,9 @@
   Sfx.attach();
 
   // --- Screen state ---
-  // 'select' -> 'instructions' -> 'playing' -> 'complete', with 'pausemenu'
+  // 'select' -> 'instructions' -> 'playing' -> 'gameComplete', with 'pausemenu'
   // reachable from play via Escape. Select picks the character; instructions
-  // shows the controls; complete is the finish screen.
+  // shows the controls; gameComplete celebrates finishing the final level.
   // The full state machine (splash/hub/...) arrives in M4.
   let screen = 'select';
   let blink = 0;       // drives the gentle pulse on the prompts
@@ -44,6 +44,20 @@
   let lockShake = 0;   // brief wobble when a locked character is confirmed
   let pauseIndex = 0;  // highlighted button in the pause menu (0 resume, 1 restart)
   let gems = { A: 0, B: 0, C: 0 }; // collected count per tier (reset each run)
+  let gcState = null;              // end-screen animation state (see startGameComplete)
+
+  // Badge art for the end screen. Loaded from disk; if it can't be found we draw
+  // a simple placeholder instead and log where we looked — never crash.
+  const BADGE_PATH = 'Tiles/Assets/badge.png';
+  const badgeImg = new Image();
+  let badgeReady = false, badgeFailed = false;
+  badgeImg.onload = () => { badgeReady = true; };
+  badgeImg.onerror = () => {
+    badgeFailed = true;
+    console.warn('[Squirrel] Badge image not found at "' + BADGE_PATH +
+      '" (resolved to ' + badgeImg.src + '). Drawing a placeholder badge instead.');
+  };
+  badgeImg.src = BADGE_PATH;
 
   function startPlaying() {
     player.reset();
@@ -58,6 +72,84 @@
   function resumeGame() {
     Input.consumeJump(); // don't let the confirming Space fire a jump on resume
     screen = 'playing';
+  }
+
+  // The end-of-game celebration. Triggered when the player walks out through the
+  // final level's door. Snapshots the run's gem counts, starts the count-up and
+  // confetti, and plays the fanfare (audio is already unlocked, as reaching the
+  // exit is a gameplay event). No progress is saved.
+  function startGameComplete() {
+    Input.clearAll();
+    gcState = {
+      t: 0,
+      disp: { A: 0, B: 0, C: 0 },   // numbers currently shown (climb toward gems[])
+      order: ['A', 'B', 'C'],       // count up gold, then silver, then bronze
+      idx: 0,
+      nextAt: 0.5,                  // first tick after a short beat (fanfare opens)
+      doneAt: null,                 // t when every count has settled
+      btnAlpha: 0,                  // home button fades in after the counts finish
+      btnActive: false,             // ENTER/SPACE only returns home once true
+      confetti: makeConfetti(),
+    };
+    Sfx.fanfare();
+    screen = 'gameComplete';
+  }
+
+  // Advance the end-screen: fall the confetti, climb the counts (one soft tick
+  // per number, one tier at a time), then reveal the home button after a beat.
+  function updateGameComplete(dt) {
+    const s = gcState;
+    s.t += dt;
+
+    for (const p of s.confetti) {
+      p.vy += 60 * dt;
+      p.x += p.vx * dt + Math.sin(s.t * p.swaySpd + p.swayPh) * p.sway * dt;
+      p.y += p.vy * dt;
+      p.rot += p.vr * dt;
+      if (p.y > VIEW_H + 20) { p.y = -20; p.vy = 20 + Math.random() * 30; p.x = Math.random() * VIEW_W; }
+    }
+
+    const INTERVAL = 0.16, GAP = 0.4, BEAT = 0.8;
+    while (s.doneAt === null && s.idx < 3 && s.t >= s.nextAt) {
+      const tier = s.order[s.idx];
+      if (s.disp[tier] < gems[tier]) {
+        Sfx.tick(s.disp[tier]);
+        s.disp[tier]++;
+        s.nextAt += INTERVAL;
+      } else {
+        s.idx++;
+        s.nextAt += GAP;
+      }
+      if (s.idx >= 3) s.doneAt = s.t;
+    }
+
+    if (s.doneAt !== null && s.t - s.doneAt >= BEAT) {
+      s.btnActive = true;
+      s.btnAlpha = Math.min(1, s.btnAlpha + dt * 2.5);
+    }
+  }
+
+  // A fresh set of gently falling confetti flecks in the game's palette.
+  function makeConfetti() {
+    const colors = ['#f5c542', '#cfd7e0', '#cd7f32', '#e8622c', '#3a8f2e'];
+    const bits = [];
+    for (let i = 0; i < 110; i++) {
+      bits.push({
+        x: Math.random() * VIEW_W,
+        y: Math.random() * -VIEW_H,        // start spread out above the screen
+        vx: (Math.random() - 0.5) * 20,
+        vy: 20 + Math.random() * 40,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 4,
+        w: 6 + Math.random() * 6,
+        h: 8 + Math.random() * 8,
+        sway: 12 + Math.random() * 18,
+        swaySpd: 1 + Math.random() * 2,
+        swayPh: Math.random() * 6.28,
+        color: colors[(Math.random() * colors.length) | 0],
+      });
+    }
+    return bits;
   }
 
   // Pick up any gem within a generous radius of the player's centre.
@@ -102,6 +194,14 @@
       }
       return;
     }
+    if (screen === 'gameComplete') {
+      if (CONFIRM(e.code) && gcState && gcState.btnActive) {
+        e.preventDefault();
+        gcState = null;
+        screen = 'select';   // straight back to character select — not a hub
+      }
+      return;
+    }
     if (CONFIRM(e.code) && (screen === 'instructions' || screen === 'complete')) {
       e.preventDefault();
       startPlaying();
@@ -132,11 +232,13 @@
         player.update(STEP);
         camera.update(level, player, STEP);
         collectGems();
-        // Walked into the hut? End the level and return to character select.
-        if (level.updateExit(player, STEP)) { screen = 'select'; break; }
+        // Walked out the final door? Roll the end-of-game celebration.
+        if (level.updateExit(player, STEP)) { startGameComplete(); break; }
         acc -= STEP;
       }
     }
+
+    if (screen === 'gameComplete') updateGameComplete(dt);
 
     render();
     requestAnimationFrame(frame);
@@ -159,6 +261,8 @@
       drawInstructions();
     } else if (screen === 'complete') {
       drawComplete();
+    } else if (screen === 'gameComplete') {
+      drawGameComplete();
     } else if (screen === 'pausemenu') {
       drawPause();
     } else if (paused) {
@@ -349,6 +453,129 @@
     ctx.font = '700 30px system-ui, sans-serif';
     ctx.fillText('Press ENTER to play again', VIEW_W / 2, py + ph - 46);
     ctx.globalAlpha = 1;
+  }
+
+  // The end-of-game badge screen: dimmed world, gentle confetti, a spoken
+  // headline, the earned badge, the run's per-tier coin counts (climbing), and a
+  // wordless home button that appears after a beat to return to character select.
+  function drawGameComplete() {
+    const s = gcState;
+
+    ctx.fillStyle = 'rgba(20,10,40,0.6)';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    drawConfetti(s.confetti);
+
+    const pw = 720, ph = 470, px = (VIEW_W - pw) / 2, py = (VIEW_H - ph) / 2;
+    roundRect(px, py, pw, ph, 28);
+    ctx.fillStyle = '#fff7ec'; ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+
+    // Headline — read aloud by the grown-up; wrapped to fit the card.
+    ctx.fillStyle = '#2f2233';
+    ctx.font = '700 33px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    wrapText("Well done, squirrels! You've earned your coin-collecting badge!",
+      VIEW_W / 2, py + 52, pw - 100, 40);
+
+    // The earned badge (real art, or a placeholder if the file was missing).
+    drawBadge(VIEW_W / 2, py + 232, 150);
+
+    // Per-tier coin counts, climbing from zero. Collected count only.
+    const cy = py + 330;
+    const cols = [VIEW_W / 2 - 190, VIEW_W / 2, VIEW_W / 2 + 190];
+    s.order.forEach((tier, i) => {
+      const x = cols[i];
+      drawCoin(ctx, x - 26, cy, 17, tier);
+      ctx.fillStyle = '#2f2233';
+      ctx.font = '700 34px system-ui, sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('×' + s.disp[tier], x - 4, cy + 1);
+    });
+
+    // Home button — appears after the counts settle. Wordless house glyph.
+    if (s.btnAlpha > 0) drawHomeButton(VIEW_W / 2, py + 400, s.btnAlpha, s.btnActive);
+  }
+
+  function drawConfetti(bits) {
+    for (const p of bits) {
+      ctx.save();
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+  }
+
+  // Draw the earned badge centred at (cx, cy) fitted to a size×size box. Uses the
+  // loaded PNG when ready; otherwise a simple procedural rosette so the screen
+  // still works if the art is missing.
+  function drawBadge(cx, cy, size) {
+    if (badgeReady && !badgeFailed) {
+      ctx.drawImage(badgeImg, cx - size / 2, cy - size / 2, size, size);
+      return;
+    }
+    const r = size * 0.42;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = '#f5c542'; ctx.strokeStyle = '#2f2233'; ctx.lineWidth = 5;
+    ctx.beginPath();
+    const petals = 14;
+    for (let i = 0; i <= petals; i++) {
+      const a = (i / petals) * Math.PI * 2, rr = r * (i % 2 === 0 ? 1 : 0.86);
+      const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.62, 0, 7);
+    ctx.fillStyle = '#fff7ec'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#e8622c'; ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 === 0 ? r * 0.46 : r * 0.2;
+      const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // A wordless "home" button: a house glyph on a rounded cap. Fades in via alpha
+  // and gently pulses once active. Activated by ENTER/SPACE (see keydown).
+  function drawHomeButton(cx, cy, alpha, active) {
+    const pulse = active ? 0.6 + 0.4 * Math.abs(Math.sin(blink * 2.2)) : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const w = 92, h = 76;
+    roundRect(cx - w / 2, cy - h / 2, w, h, 16);
+    ctx.fillStyle = '#f3e7d2'; ctx.fill();
+    ctx.globalAlpha = alpha * pulse; ctx.lineWidth = 5; ctx.strokeStyle = '#3a8f2e'; ctx.stroke();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#2f2233'; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+    const hw = 30, eaveY = cy - 4, roofY = cy - 20, baseY = cy + 20;
+    ctx.fillStyle = '#e8622c'; ctx.beginPath();          // roof
+    ctx.moveTo(cx - hw, eaveY); ctx.lineTo(cx, roofY); ctx.lineTo(cx + hw, eaveY);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    const bw = 22;
+    roundRect(cx - bw, eaveY, bw * 2, baseY - eaveY, 3);  // body
+    ctx.fillStyle = '#fff7ec'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#2f2233';                            // door
+    roundRect(cx - 7, baseY - 16, 14, 16, 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Word-wrap `text` centred at (cx, y), breaking to fit maxW; lines step by lh.
+  // Uses the current font/fill; caller sets textAlign 'center'.
+  function wrapText(text, cx, y, maxW, lh) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w;
+      if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+      else line = test;
+    }
+    if (line) lines.push(line);
+    const startY = y - ((lines.length - 1) * lh) / 2;
+    lines.forEach((ln, i) => ctx.fillText(ln, cx, startY + i * lh));
   }
 
   // The controls card. Text is for the accompanying adult; the drawn key glyphs

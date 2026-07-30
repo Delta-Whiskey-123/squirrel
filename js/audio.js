@@ -127,6 +127,57 @@ const Sfx = (function () {
     o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + 0.18);
   }
 
+  // Fanfare — a big triumphant "ta-DAAA" (~5s) played once when the player
+  // finishes the final level. A short bright pickup note, a tiny gap, then a
+  // large wide C-major chord that holds and rings out over five seconds with a
+  // sparkle tail. Sawtooth layers give the brassy edge; triangle fills the body.
+  function fanfare() {
+    ensure(); resume();
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+
+    // A sustained voice with a real hold + release — tone()'s quick decay is far
+    // too short to carry a long chord.
+    function voice(type, f, start, peak, sustain, release) {
+      const t = t0 + start;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.03);                  // fast attack
+      g.gain.setValueAtTime(peak, t + sustain);                            // hold
+      g.gain.exponentialRampToValueAtTime(0.0001, t + sustain + release);  // release
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + sustain + release + 0.05);
+    }
+
+    // "Ta" — a short, bright pickup note (G).
+    tone('sawtooth', 392, 392, 0, 0.18, 0.13);
+    tone('triangle', 392, 392, 0, 0.18, 0.22);
+
+    // "…DAAA" — a big wide C-major chord across four octaves, held then released
+    // so the whole flourish rings out over ~5 seconds.
+    const start = 0.28, sustain = 3.6, release = 1.2;
+    voice('triangle', 131, start, 0.14, sustain, release);   // C3 — deep root, body only
+    [262, 392, 523, 659, 784, 1047, 1319].forEach((f) => {   // C4 G4 C5 E5 G5 C6 E6
+      voice('sawtooth', f, start, 0.08, sustain, release);
+      voice('triangle', f, start, 0.10, sustain, release);
+    });
+
+    // Sparkle/shimmer tail — twinkles spread across the long ring-out.
+    tone('sine', 1568, 1568, 0.55, 0.7, 0.14);
+    tone('sine', 2093, 2093, 0.90, 0.7, 0.12);
+    tone('sine', 2637, 2637, 1.30, 0.8, 0.10);
+    tone('sine', 3136, 3136, 1.80, 0.9, 0.08);
+  }
+
+  // Tick — a soft, short blip for the end-screen coin counts as they climb. The
+  // pitch nudges up a semitone per step so a run of them feels like it ascends.
+  function tick(step) {
+    ensure(); resume();
+    const f = 720 * Math.pow(2, (step || 0) / 12);
+    tone('sine', f, f, 0, 0.05, 0.16);
+  }
+
   // Own keydown listener: init the context on the first key, and handle M mute.
   function attach() {
     window.addEventListener('keydown', (e) => {
@@ -135,5 +186,5 @@ const Sfx = (function () {
     });
   }
 
-  return { attach, ensure, resume, isMuted, toggleMute, jump, land, collect, boing };
+  return { attach, ensure, resume, isMuted, toggleMute, jump, land, collect, boing, fanfare, tick };
 })();
