@@ -264,9 +264,72 @@ function drawGreyRabbit(ctx, cx, feetY, s, o) {
   ctx.restore();
 }
 
+// Battenberg — the marzipan cake. A tall, boxy rounded-square body in marzipan
+// tan with short squared-off arms and two stubby squared-off legs. His whole
+// front is a 2x2 Battenberg checkerboard (soft pink / pale yellow, golden
+// marzipan border) with two dot eyes and a small smile. Boxier and taller than
+// the Ted Teds so he reads as a different body type. Ignores the ear params.
+function drawBattenberg(ctx, cx, feetY, s, o) {
+  o = o || {};
+  const face = o.face || 0, leg = o.leg || 0, sq = o.sq || 1;
+  const TAN = '#E7C9A0', OUT = '#3B2A1B', GOLD = '#C79A3A',
+        PINK = '#E9A2AA', YEL = '#E7DE99', INK = '#1A140E';
+
+  ctx.save();
+  ctx.translate(cx, feetY);
+  ctx.scale(1 / Math.sqrt(sq), sq);     // squash/stretch about the feet
+  ctx.scale(s, s);
+  ctx.rotate(face * 0.05);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+  ctx.fillStyle = 'rgba(40,25,15,0.16)';
+  ctx.beginPath(); ctx.ellipse(0, 1, 22, 4.5, 0, 0, 7); ctx.fill();
+
+  ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+
+  // Squared-off stubby arms (behind the body so the inner ends tuck under it);
+  // they counter-swing gently with the walk and reach out to the sides.
+  ctx.fillStyle = TAN;
+  [[-1, leg], [1, -leg]].forEach(([side, dy]) => {
+    const ax = side > 0 ? 13 : -27.28;   // inner edge tucked at the body, growing outward
+    _rr(ctx, ax, -33.3 + dy, 14.28, 9.6, 2); ctx.fill(); ctx.stroke();
+  });
+
+  // Two squared-off stubby legs.
+  ctx.fillStyle = TAN;
+  [[-9, leg], [9, -leg]].forEach(([lx, dy]) => { _rr(ctx, lx - 5, -10 + dy, 10, 8.8 - dy, 2); ctx.fill(); ctx.stroke(); });
+
+  // Tall rounded-square body.
+  ctx.fillStyle = TAN; _rr(ctx, -17, -58, 34, 48, 12); ctx.fill(); ctx.stroke();
+
+  // Checkerboard face: 2x2 pink/yellow cells clipped to a rounded square, with
+  // a golden marzipan border. (Yellow TL, pink TR, pink BL, yellow BR.)
+  const cxf = 0, cyf = -35, hf = 14;
+  ctx.save();
+  _rr(ctx, cxf - hf, cyf - hf, hf * 2, hf * 2, 3); ctx.clip();
+  [[-hf, -hf, YEL], [0, -hf, PINK], [-hf, 0, PINK], [0, 0, YEL]]
+    .forEach(([qx, qy, col]) => { ctx.fillStyle = col; ctx.fillRect(cxf + qx, cyf + qy, hf, hf); });
+  ctx.restore();
+  _rr(ctx, cxf - hf, cyf - hf, hf * 2, hf * 2, 3); ctx.strokeStyle = GOLD; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // Two dot eyes with a white highlight, shifted toward facing.
+  const ex = face * 1.3;
+  [-5.5, 5.5].forEach((dx) => {
+    ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(dx + ex, cyf - 1, 2.6, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(dx + ex - 0.8, cyf - 1.9, 0.9, 0, 7); ctx.fill();
+  });
+
+  // Small smile.
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.arc(ex * 0.6, cyf + 5, 3.4, 0.25, Math.PI - 0.25); ctx.stroke();
+
+  ctx.restore();
+}
+
 // The roster.
 const CHARACTERS = [
   { id: 'yellow', name: 'Yellow Ted Ted', locked: false, draw: drawLion },
   { id: 'blue',   name: 'Blue Ted Ted',   locked: false, draw: drawBlueRabbit },
   { id: 'grey',   name: 'Grey Ted Ted',   locked: false, draw: drawGreyRabbit },
+  { id: 'battenberg', name: 'Battenberg',  locked: false, draw: drawBattenberg },
 ];

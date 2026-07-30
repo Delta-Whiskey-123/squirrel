@@ -280,7 +280,10 @@
     ctx.fillText(sel.name, VIEW_W / 2, py + 288);
 
     // Row of choosable slots.
-    const sw = 150, sh = 100, gap = 48;
+    const gap = 40;
+    const maxRow = pw - 56;                                    // keep a margin inside the card
+    const sw = Math.min(150, (maxRow - gap * (CHARACTERS.length - 1)) / CHARACTERS.length);
+    const sh = sw * (2 / 3);                                   // preserve the 3:2 slot shape
     const total = CHARACTERS.length * sw + (CHARACTERS.length - 1) * gap;
     const row = VIEW_W / 2 - total / 2;
     CHARACTERS.forEach((c, i) => {
