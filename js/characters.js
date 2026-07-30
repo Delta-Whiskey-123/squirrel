@@ -332,6 +332,7 @@ const CHARACTERS = [
   { id: 'blue',   name: 'Blue Ted Ted',   locked: false, draw: drawBlueRabbit },
   { id: 'grey',   name: 'Grey Ted Ted',   locked: false, draw: drawGreyRabbit },
   { id: 'battenberg', name: 'Battenberg',  locked: false, draw: drawBattenberg,
-    // Triple jump: two air jumps, and the final one matches first-jump height.
-    jump: { airJumps: 2, lastAirJumpVel: Physics.JUMP_VELOCITY } },
+    // Triple jump: two air jumps; the final one reaches 2x first-jump height.
+    // Height scales with velocity^2, so velocity = sqrt(2) * JUMP_VELOCITY.
+    jump: { airJumps: 2, lastAirJumpVel: Physics.JUMP_VELOCITY * Math.SQRT2 } },
 ];
