@@ -139,7 +139,7 @@ class Player {
         this.vy = bigLast ? this.character.jump.lastAirJumpVel : P.DOUBLE_JUMP_VEL;
         this.airJumpsLeft--;
         Input.consumeJump();
-        Sfx.jump();
+        if (bigLast) Sfx.boing(); else Sfx.jump();   // special springy boing on the third jump
       }
     }
 

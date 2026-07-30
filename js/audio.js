@@ -71,6 +71,38 @@ const Sfx = (function () {
   function jump() { ensure(); resume(); tone('sine', 380, 720, 0, 0.12, 0.5); }         // rising blip (~120ms)
   function land() { ensure(); resume(); tone('sine', 190, 85, 0, 0.14, 0.45); noise(0, 0.10, 0.18, 350); } // soft thud (~140ms)
 
+  // Boing — a cartoon spring "boinng-oing-oing" for Battenberg's special third
+  // jump. A rounded triangle tone snaps up in pitch on launch then wobbles
+  // downward as it settles, with a medium (~16Hz), decaying vibrato you can hear
+  // as distinct bounces (no metallic buzz). Rings out to ~800ms as a flourish.
+  function boing() {
+    ensure(); resume();
+    if (!ctx) return;
+    const t = ctx.currentTime, dur = 0.78;
+    // Snap up on launch, then wobble downward as the spring settles.
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(360, t);
+    o.frequency.exponentialRampToValueAtTime(650, t + 0.04);   // fast snap up
+    o.frequency.exponentialRampToValueAtTime(240, t + dur);    // settle downward
+    // Medium, decaying vibrato — distinct "oi-oi-oing" bounces, not a smear.
+    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(16, t);
+    lfo.frequency.exponentialRampToValueAtTime(11, t + dur);   // slows as it settles
+    lfoGain.gain.setValueAtTime(150, t);
+    lfoGain.gain.exponentialRampToValueAtTime(2, t + dur);     // wobble shrinks away
+    lfo.connect(lfoGain); lfoGain.connect(o.frequency);
+    // Soft attack, then a sustained ring-out so the wobble stays audible ~800ms.
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.42, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.09, t + 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.02);
+    lfo.start(t); lfo.stop(t + dur + 0.02);
+  }
+
   function collect(tier) {
     ensure(); resume();
     if (tier === 'A') gold(); else if (tier === 'B') silver(); else bronze();
@@ -103,5 +135,5 @@ const Sfx = (function () {
     });
   }
 
-  return { attach, ensure, resume, isMuted, toggleMute, jump, land, collect };
+  return { attach, ensure, resume, isMuted, toggleMute, jump, land, collect, boing };
 })();
