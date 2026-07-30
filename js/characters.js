@@ -331,5 +331,7 @@ const CHARACTERS = [
   { id: 'yellow', name: 'Yellow Ted Ted', locked: false, draw: drawLion },
   { id: 'blue',   name: 'Blue Ted Ted',   locked: false, draw: drawBlueRabbit },
   { id: 'grey',   name: 'Grey Ted Ted',   locked: false, draw: drawGreyRabbit },
-  { id: 'battenberg', name: 'Battenberg',  locked: false, draw: drawBattenberg },
+  { id: 'battenberg', name: 'Battenberg',  locked: false, draw: drawBattenberg,
+    // Triple jump: two air jumps, and the final one matches first-jump height.
+    jump: { airJumps: 2, lastAirJumpVel: Physics.JUMP_VELOCITY } },
 ];

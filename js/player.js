@@ -31,6 +31,7 @@ class Player {
     this.coyote = 0;        // time left where a jump is still allowed after leaving ground
     this.wasJumpHeld = false;
     this.airJumpsLeft = Physics.MAX_AIR_JUMPS; // mid-air jumps until we next land
+    this.maxAirJumps = Physics.MAX_AIR_JUMPS;  // per-character cap; set at setCharacter
 
     // Procedural animation state (drives squash/stretch, leg swing, idle bob).
     this.animTime = 0;
@@ -66,7 +67,7 @@ class Player {
     this.onGround = false;
     this.coyote = 0;
     this.respawnTimer = 0;
-    this.airJumpsLeft = Physics.MAX_AIR_JUMPS;
+    this.airJumpsLeft = this.maxAirJumps;
     this.earDroop = 0;
     this.earVel = 0;
     this.earSway = 0;
@@ -131,7 +132,11 @@ class Player {
         // and caps the peak at ~1.3*H when pressed right at the apex. A press
         // made a touch early is held by the jump buffer and fires at the apex;
         // a press while still rising fast is simply ignored (not wasted).
-        this.vy = P.DOUBLE_JUMP_VEL;
+        // Air jump: the weaker double-jump velocity, except a character with a
+        // full-height final air jump (Battenberg's triple) uses their special
+        // velocity on the last one so the third hop matches the first.
+        const bigLast = this.airJumpsLeft === 1 && this.character.jump && this.character.jump.lastAirJumpVel;
+        this.vy = bigLast ? this.character.jump.lastAirJumpVel : P.DOUBLE_JUMP_VEL;
         this.airJumpsLeft--;
         Input.consumeJump();
         Sfx.jump();
@@ -163,13 +168,13 @@ class Player {
         this.vy = -spring.bounce;
         if (spring.vertical) this.vx = 0;
         this.onGround = false;
-        this.airJumpsLeft = P.MAX_AIR_JUMPS;
+        this.airJumpsLeft = this.maxAirJumps;
         this.landTimer = 0.1;
         Sfx.jump();                            // spring reuses the jump blip for now
       } else {
         if (!wasOnGround) { this.landTimer = 0.12; Sfx.land(); } // squash + thud on touchdown
         this.vy = 0;
-        this.airJumpsLeft = P.MAX_AIR_JUMPS; // landing refills the mid-air jump
+        this.airJumpsLeft = this.maxAirJumps; // landing refills the mid-air jumps
         this._rememberSafeSpot();
       }
     }
@@ -235,5 +240,9 @@ class Player {
     this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq, t: this.animTime, earDroop: this.earDroop, earSway: this.earSway });
   }
 
-  setCharacter(c) { this.character = c; }
+  setCharacter(c) {
+    this.character = c;
+    this.maxAirJumps = (c.jump && c.jump.airJumps) || Physics.MAX_AIR_JUMPS;
+    this.airJumpsLeft = this.maxAirJumps;
+  }
 }
