@@ -496,8 +496,9 @@
     wrapText("Well done, squirrels! You've earned your coin-collecting badge!",
       VIEW_W / 2, py + 52, pw - 100, 40);
 
-    // The earned badge (real art, or a placeholder if the file was missing).
-    drawBadge(VIEW_W / 2, py + 232, 150);
+    // The earned badge (real art, or a placeholder if the file was missing) —
+    // sized to fill the gap between the headline and the coin counts.
+    drawBadge(VIEW_W / 2, py + 200, 200);
 
     // Per-tier coin counts, climbing from zero. Collected count only.
     const cy = py + 330;
