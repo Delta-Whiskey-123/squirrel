@@ -4,6 +4,7 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+node_modules/
 
 # Local dev-server config (points at session-specific paths)
 .claude/launch.json

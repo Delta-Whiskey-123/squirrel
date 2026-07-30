@@ -28,7 +28,13 @@
       "PowerShell($c = Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c.OwningProcess | Select-Object -Unique | ForEach-Object { try { Stop-Process -Id $_ -Force -ErrorAction Stop; \"stopped PID $_\" } catch {} } } else { \"nothing listening on 8765\" })",
       "PowerShell(& \"C:\\\\Users\\\\domin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-domin--claude-squirrel\\\\bacb8ea9-11eb-497b-b268-6421fce835d0\\\\scratchpad\\\\serve.ps1\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8765/index.html)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(mkdir -p \"/c/Users/domin/AppData/Local/Temp/claude/C--Users-domin--claude-squirrel/acb3a731-dbc0-43d3-b071-bcaabf44adce/scratchpad\")",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\domin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-domin--claude-squirrel\\\\acb3a731-dbc0-43d3-b071-bcaabf44adce\\\\scratchpad\\\\make_badges.ps1\")",
+      "PowerShell(& \"C:\\\\Users\\\\domin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-domin--claude-squirrel\\\\3333d604-abf1-4c91-a554-f798748b2a4d\\\\scratchpad\\\\make_badges.ps1\")",
+      "Bash(gh --version)",
+      "Bash(gh auth *)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)"
     ]
   }
 }
