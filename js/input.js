@@ -16,6 +16,14 @@ const Input = (function () {
   let jumpHeld = false;    // true while the jump key is physically held
   let jumpConsumedThisPress = false; // reset each fresh press (for double jump etc.)
 
+  // Sprint (double-tap-and-hold). Per-direction: `win` counts down the window in
+  // which a second press still pairs with the first tap; `released` marks that
+  // the first tap's key came back up, so a re-press can complete the double-tap.
+  // A latched `sprintDir` stays held until that direction is released/reversed.
+  let doubleTapWindow = 0.25;
+  const tap = { '-1': { win: 0, released: false }, '1': { win: 0, released: false } };
+  let sprintDir = 0;       // -1 / 0 / +1 — direction currently sprint-held
+
   // Touch stub, unused for now — kept behind a flag for later app conversion.
   const TOUCH_ENABLED = false;
 
@@ -26,6 +34,12 @@ const Input = (function () {
   function isAny(codes) {
     for (const c of codes) if (down[c]) return true;
     return false;
+  }
+
+  function dirOf(code) {
+    if (LEFT_KEYS.includes(code)) return -1;
+    if (RIGHT_KEYS.includes(code)) return 1;
+    return 0;
   }
 
   function onKeyDown(e) {
@@ -42,6 +56,19 @@ const Input = (function () {
       jumpHeld = true;
       jumpConsumedThisPress = false;
     }
+
+    // Sprint double-tap. (Auto-repeat is filtered above, so this is a fresh press.)
+    const d = dirOf(e.code);
+    if (d !== 0) {
+      if (sprintDir !== 0 && sprintDir !== d) sprintDir = 0; // opposite press cancels a sprint
+      const rec = tap[d];
+      if (rec.win > 0 && rec.released) {
+        sprintDir = d;                                       // second, held press → latch sprint
+        rec.win = 0; rec.released = false;
+      } else {
+        rec.win = doubleTapWindow; rec.released = false;     // (re)start a first tap
+      }
+    }
   }
 
   function onKeyUp(e) {
@@ -49,6 +76,13 @@ const Input = (function () {
     if (JUMP_KEYS.includes(e.code)) {
       // Jump is "held" only while at least one jump key is down.
       jumpHeld = isAny(JUMP_KEYS);
+    }
+
+    const d = dirOf(e.code);
+    if (d !== 0) {
+      if (tap[d].win > 0) tap[d].released = true;            // first tap let go — a re-press can now pair
+      // Sprint ends once no key for the latched direction remains held.
+      if (sprintDir === d && !isAny(d === -1 ? LEFT_KEYS : RIGHT_KEYS)) sprintDir = 0;
     }
   }
 
@@ -63,11 +97,16 @@ const Input = (function () {
     for (const k in down) down[k] = false;
     jumpHeld = false;
     jumpBuffer = 0;
+    sprintDir = 0;
+    tap['-1'].win = tap['1'].win = 0;
+    tap['-1'].released = tap['1'].released = false;
   }
 
   // Advance timers. Called once per fixed physics step with dt in seconds.
   function update(dt) {
     if (jumpBuffer > 0) jumpBuffer = Math.max(0, jumpBuffer - dt);
+    if (tap['-1'].win > 0) tap['-1'].win = Math.max(0, tap['-1'].win - dt);
+    if (tap['1'].win  > 0) tap['1'].win  = Math.max(0, tap['1'].win  - dt);
   }
 
   // Horizontal axis: -1, 0, or +1.
@@ -83,10 +122,16 @@ const Input = (function () {
   // Consume the buffered jump so it fires exactly once.
   function consumeJump() { jumpBuffer = 0; }
 
+  // Direction (-1/0/+1) currently held via a completed sprint double-tap.
+  function sprintHeld() { return sprintDir; }
+  // The active character sets its own double-tap window (0 disables via no run).
+  function setDoubleTapWindow(s) { doubleTapWindow = s; }
+
   return {
     attach, update, clearAll,
     moveX,
     jumpQueued, consumeJump,
+    sprintHeld, setDoubleTapWindow,
     get jumpHeld() { return jumpHeld; },
     TOUCH_ENABLED,
   };

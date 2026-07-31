@@ -328,7 +328,9 @@ function drawBattenberg(ctx, cx, feetY, s, o) {
 
 // The roster.
 const CHARACTERS = [
-  { id: 'yellow', name: 'Yellow Ted Ted', locked: false, draw: drawLion },
+  { id: 'yellow', name: 'Yellow Ted Ted', locked: false, draw: drawLion,
+    // Sprint: double-tap-and-hold a direction to run at 1.8x base speed.
+    run: { topSpeed: Physics.MOVE_SPEED * 1.8, doubleTapWindow: 0.25 } },
   { id: 'blue',   name: 'Blue Ted Ted',   locked: false, draw: drawBlueRabbit },
   { id: 'grey',   name: 'Grey Ted Ted',   locked: false, draw: drawGreyRabbit },
   { id: 'battenberg', name: 'Battenberg',  locked: false, draw: drawBattenberg,

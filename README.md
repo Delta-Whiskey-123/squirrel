@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.6.0** (2026-07-30)
+**Current version: v0.6.5** (2026-07-31)
 
 ---
 
@@ -30,6 +30,7 @@ Two controls, plus menu keys — the whole input surface for a 4-year-old is:
 | Action | Keys |
 |---|---|
 | Move | ← / → (or A / D) |
+| Sprint (Yellow Ted Ted) | Double-tap-and-hold ← or → to run (1.8× speed) |
 | Jump / double jump | Space (press again in mid-air for the second jump) |
 | Choose / confirm (menus) | Space or Enter |
 | Back (menus) | Backspace |
@@ -115,6 +116,26 @@ Distinct character abilities and more levels are next.
 ---
 
 ## Version history
+
+### v0.6.5 — Yellow Ted Ted's sprint (2026-07-31)
+- Gave **Yellow Ted Ted** a character-exclusive **sprint** ability: **double-tap
+  and hold** a direction (← / → or A / D) to run at **1.8× base speed** (260 →
+  468 px/s). The first tap is a quick press-release; the held second press
+  engages the boost. The player accelerates up to the sprint speed and, when the
+  boost ends while still walking, eases back down over ~0.2s rather than
+  snapping.
+- **Grounded-only initiation**: a double-tap completed mid-air is void — you must
+  be on the ground when it engages. **Momentum is preserved through jumps**: a
+  running jump keeps its full sprint velocity for the whole arc, and the sprint
+  stays latched through a jump-and-landing while the key is held. A normal
+  (non-sprint) jump never gains speed.
+- Added a short **"fwip" sprint cue** (`Sfx.sprint`) — a quick upward blip plus a
+  soft airy whoosh, routed through the existing master gain (M-mute covers it).
+  No new dependencies or audio files.
+- Implementation: a per-direction double-tap state machine in **js/input.js**
+  (`Input.sprintHeld()`, `setDoubleTapWindow()`), a rising-edge sprint latch and
+  dynamic speed cap in **js/player.js**, and a per-character `run` config on
+  Yellow in **js/characters.js**. Other characters are unaffected.
 
 ### v0.6.0 — Level select & menu sounds (2026-07-30)
 - Built the **level select screen** as the new entry point before character
@@ -209,6 +230,7 @@ Distinct character abilities and more levels are next.
 - Tag `v0.4.0` — collectibles, audio, third character (2026-07-30).
 - Tag `v0.5.0` — badge celebration, fanfare, fourth character (2026-07-30).
 - Tag `v0.6.0` — level select screen + menu sounds (2026-07-30).
+- Tag `v0.6.5` — Yellow Ted Ted's sprint ability (2026-07-31).
 
 ---
 

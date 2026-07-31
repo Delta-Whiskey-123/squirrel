@@ -28,6 +28,13 @@ class Player {
     this.onGround = false;
     this.facing = 1;
 
+    // Sprint (Yellow Ted Ted). `sprinting` latches while the double-tapped key is
+    // held; `speedCap` is the current horizontal top speed, eased between base
+    // and the sprint speed so a boost winds down smoothly instead of snapping.
+    this.sprinting = false;
+    this.speedCap = Physics.MOVE_SPEED;
+    this.prevSprintDir = 0;   // latch state last frame, for rising-edge detection
+
     this.coyote = 0;        // time left where a jump is still allowed after leaving ground
     this.wasJumpHeld = false;
     this.airJumpsLeft = Physics.MAX_AIR_JUMPS; // mid-air jumps until we next land
@@ -67,6 +74,9 @@ class Player {
     this.onGround = false;
     this.coyote = 0;
     this.respawnTimer = 0;
+    this.sprinting = false;
+    this.speedCap = Physics.MOVE_SPEED;
+    this.prevSprintDir = 0;
     this.airJumpsLeft = this.maxAirJumps;
     this.earDroop = 0;
     this.earVel = 0;
@@ -88,6 +98,38 @@ class Player {
 
     const P = Physics;
 
+    // --- Sprint (Yellow Ted Ted): double-tap-and-hold a direction to run.
+    // Engaged only from the ground; the latch persists while the key stays held
+    // (so it survives a jump) and ends when the key is released or reversed. ---
+    const run = this.character.run;
+    const sprintDir = run ? Input.sprintHeld() : 0;
+    if (sprintDir === 0) {
+      this.sprinting = false;                       // key released → sprint off
+    } else if (sprintDir !== this.prevSprintDir) {
+      // A fresh double-tap latch (rising edge). It only engages from the ground,
+      // so a double-tap performed mid-air is void — you must be grounded when it
+      // completes. Once engaged it persists (held) through a jump and landing.
+      this.sprinting = this.onGround;
+      if (this.sprinting) Sfx.sprint();
+    }
+    this.prevSprintDir = sprintDir;
+
+    // Horizontal speed cap. On the ground it snaps up to the sprint top speed and
+    // eases back down over ~0.2s; the boost only applies while grounded. In the
+    // air the cap never drops below the speed we already carry, so a running jump
+    // keeps its velocity for the whole arc — and a normal jump never gains any.
+    const boosting = this.sprinting && this.onGround;
+    if (this.onGround) {
+      const target = boosting ? run.topSpeed : P.MOVE_SPEED;
+      if (target >= this.speedCap) this.speedCap = target;
+      else {
+        const windDown = (run ? run.topSpeed : P.MOVE_SPEED) - P.MOVE_SPEED; // px/s spanned in ~0.2s
+        this.speedCap = Math.max(target, this.speedCap - windDown / 0.2 * dt);
+      }
+    } else {
+      this.speedCap = Math.max(P.MOVE_SPEED, Math.abs(this.vx));
+    }
+
     // --- Horizontal acceleration toward the input direction ---
     const dir = Input.moveX();
     let accel;
@@ -103,9 +145,8 @@ class Player {
     if (dir !== 0) {
       this.vx += dir * accel * dt;
       this.facing = dir;
-      const max = P.MOVE_SPEED;
-      if (this.vx >  max) this.vx =  max;
-      if (this.vx < -max) this.vx = -max;
+      if (this.vx >  this.speedCap) this.vx =  this.speedCap;
+      if (this.vx < -this.speedCap) this.vx = -this.speedCap;
     } else if (this.onGround) {
       // Friction only bites on the ground so air control stays floaty.
       const fr = P.FRICTION * dt;
@@ -244,5 +285,7 @@ class Player {
     this.character = c;
     this.maxAirJumps = (c.jump && c.jump.airJumps) || Physics.MAX_AIR_JUMPS;
     this.airJumpsLeft = this.maxAirJumps;
+    // Only characters with a `run` ability sprint; others keep the default window.
+    Input.setDoubleTapWindow((c.run && c.run.doubleTapWindow) || 0.25);
   }
 }

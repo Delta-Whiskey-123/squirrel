@@ -71,6 +71,10 @@ const Sfx = (function () {
   function jump() { ensure(); resume(); tone('sine', 380, 720, 0, 0.12, 0.5); }         // rising blip (~120ms)
   function land() { ensure(); resume(); tone('sine', 190, 85, 0, 0.14, 0.45); noise(0, 0.10, 0.18, 350); } // soft thud (~140ms)
 
+  // Sprint — a quick upward "fwip" plus a soft airy whoosh when Yellow's run
+  // engages. Subtle and short so it reads as "speed", not a fanfare (~120ms).
+  function sprint() { ensure(); resume(); tone('triangle', 300, 560, 0, 0.12, 0.18); noise(0, 0.12, 0.10, 1200); }
+
   // Boing — a cartoon spring "boinng-oing-oing" for Battenberg's special third
   // jump. A rounded triangle tone snaps up in pitch on launch then wobbles
   // downward as it settles, with a medium (~16Hz), decaying vibrato you can hear
@@ -216,5 +220,5 @@ const Sfx = (function () {
     });
   }
 
-  return { attach, ensure, resume, isMuted, toggleMute, jump, land, collect, boing, fanfare, tick, move, confirm, locked, back };
+  return { attach, ensure, resume, isMuted, toggleMute, jump, land, sprint, collect, boing, fanfare, tick, move, confirm, locked, back };
 })();
