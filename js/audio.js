@@ -193,6 +193,21 @@ const Sfx = (function () {
     tone('sine', f, f, 0, 0.05, 0.16);
   }
 
+  // --- Menu sounds ---
+  // Warm, rounded triangle voices through the shared master (so M mute + VOL
+  // cover them like every other sound). Each call is a fresh short voice that
+  // self-stops, so holding a key can't pile up or distort. tone() already gives
+  // a soft attack + smooth decay, so there are no clicks. Tunable numbers:
+  //
+  //   move    triangle  480Hz            dur 0.06s  peak 0.10   (quietest; plays a lot)
+  //   confirm triangle  523Hz then 784Hz dur 0.09/0.11s peak 0.26 (upward two-note lift)
+  //   locked  triangle  294Hz then 196Hz dur 0.10/0.15s peak 0.26 (low downward "nuh-uh")
+  //   back    triangle  523Hz->392Hz glide dur 0.12s  peak 0.18   (soft falling counter to confirm)
+  function move()    { ensure(); resume(); tone('triangle', 480, 480, 0, 0.06, 0.10); }
+  function confirm() { ensure(); resume(); tone('triangle', 523, 523, 0, 0.09, 0.26); tone('triangle', 784, 784, 0.07, 0.11, 0.26); }
+  function locked()  { ensure(); resume(); tone('triangle', 294, 294, 0, 0.10, 0.24); tone('triangle', 196, 196, 0.08, 0.15, 0.26); }
+  function back()    { ensure(); resume(); tone('triangle', 523, 392, 0, 0.12, 0.18); }
+
   // Own keydown listener: init the context on the first key, and handle M mute.
   function attach() {
     window.addEventListener('keydown', (e) => {
@@ -201,5 +216,5 @@ const Sfx = (function () {
     });
   }
 
-  return { attach, ensure, resume, isMuted, toggleMute, jump, land, collect, boing, fanfare, tick };
+  return { attach, ensure, resume, isMuted, toggleMute, jump, land, collect, boing, fanfare, tick, move, confirm, locked, back };
 })();

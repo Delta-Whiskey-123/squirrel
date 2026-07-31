@@ -82,6 +82,12 @@ class Level {
       .forEach(([x, y]) => gem(x, y, 'C'));
   }
 
+  // Load the geometry for a level id. Today the Woodland Path is the only level,
+  // so every id builds the same world — the id is just stored. When more levels
+  // are authored, branch here (rebuild solids/gems/exit for `this.id`). A missing
+  // or falsy id falls back to level 1 so a stray load never errors.
+  load(id) { this.id = id || 1; }
+
   resetGems() { for (const g of this.gems) g.taken = false; }
 
   _build() {

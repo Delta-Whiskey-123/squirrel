@@ -34,12 +34,17 @@
   Sfx.attach();
 
   // --- Screen state ---
-  // 'select' -> 'instructions' -> 'playing' -> 'gameComplete', with 'pausemenu'
-  // reachable from play via Escape. Select picks the character; instructions
-  // shows the controls; gameComplete celebrates finishing the final level.
-  // The full state machine (splash/hub/...) arrives in M4.
-  let screen = 'select';
+  // 'levelselect' -> 'select' -> 'instructions' -> 'playing' -> 'gameComplete',
+  // with 'pausemenu' reachable from play via Escape. Level select picks the
+  // level; select picks the character; instructions shows the controls;
+  // gameComplete celebrates finishing a level. Level select is the entry screen
+  // for now — the full state machine (splash/hub/...) arrives in M4.
+  let screen = 'levelselect';
   let blink = 0;       // drives the gentle pulse on the prompts
+  let levelIndex = 0;  // focused card in the level grid; persists so re-entry
+                       // starts on the last-chosen level
+  let levelShake = 0;  // brief wobble when a locked level is confirmed
+  let selectedLevelId = LEVELS[0].id; // chosen level; defaults to 1 (crash guard)
   let selIndex = 0;    // highlighted character in the select row
   let lockShake = 0;   // brief wobble when a locked character is confirmed
   let pauseIndex = 0;  // highlighted button in the pause menu (0 resume, 1 restart)
@@ -60,6 +65,11 @@
   badgeImg.src = BADGE_PATH;
 
   function startPlaying() {
+    // LEVEL LOAD: the chosen level id (set on the level-select screen, defaulting
+    // to 1) selects which world to build. Only Training exists today, so every id
+    // loads the same Woodland Path — but the id flows through here, so adding a
+    // level later is just a branch inside level.load().
+    level.load(selectedLevelId);
     player.reset();
     camera.snapTo(level, player);
     Input.clearAll();  // drop any key state left over from the menus
@@ -101,8 +111,9 @@
       idx: 0,
       nextAt: 0.5,                  // first tick after a short beat (fanfare opens)
       doneAt: null,                 // t when every count has settled
-      btnAlpha: 0,                  // home button fades in after the counts finish
-      btnActive: false,             // ENTER/SPACE only returns home once true
+      btnAlpha: 0,                  // buttons fade in after the counts finish
+      btnActive: false,             // ENTER/SPACE only acts once true
+      gcIndex: 0,                   // focused button (0 home, 1 start over)
       confetti: makeConfetti(),
     };
     Sfx.fanfare();
@@ -179,40 +190,74 @@
   const CONFIRM = (c) => c === 'Enter' || c === 'NumpadEnter' || c === 'Space';
   const LEFT = (c) => c === 'ArrowLeft' || c === 'KeyA';
   const RIGHT = (c) => c === 'ArrowRight' || c === 'KeyD';
+  const UP = (c) => c === 'ArrowUp' || c === 'KeyW';
+  const DOWN = (c) => c === 'ArrowDown' || c === 'KeyS';
+  const BACK = (c) => c === 'Backspace';
 
   window.addEventListener('keydown', (e) => {
     // Escape opens/closes the pause menu during play.
     if (e.code === 'Escape') {
       if (screen === 'playing') { e.preventDefault(); pauseIndex = 0; screen = 'pausemenu'; }
-      else if (screen === 'pausemenu') { e.preventDefault(); resumeGame(); }
+      else if (screen === 'pausemenu') { e.preventDefault(); Sfx.back(); resumeGame(); }
+      else if (screen === 'select') { e.preventDefault(); Sfx.back(); screen = 'levelselect'; } // back to level select
+      // 'levelselect': nothing precedes it yet (splash/hub arrives in M4) — no-op.
+      return;
+    }
+    if (screen === 'levelselect') {
+      const COLS = 3, count = LEVELS.length;
+      const col = levelIndex % COLS;
+      if (LEFT(e.code))  { e.preventDefault(); if (col > 0) { levelIndex--; Sfx.move(); } }
+      else if (RIGHT(e.code)) { e.preventDefault(); if (col < COLS - 1 && levelIndex + 1 < count) { levelIndex++; Sfx.move(); } }
+      else if (UP(e.code))    { e.preventDefault(); if (levelIndex - COLS >= 0) { levelIndex -= COLS; Sfx.move(); } }
+      else if (DOWN(e.code))  { e.preventDefault(); if (levelIndex + COLS < count) { levelIndex += COLS; Sfx.move(); } }
+      else if (CONFIRM(e.code)) {
+        e.preventDefault();
+        const lv = LEVELS[levelIndex];
+        if (!lv.unlocked) {
+          levelShake = 0.35;                     // deny: wobble the card
+          Sfx.locked();                          // clearly-negative "nuh-uh"
+        } else {
+          selectedLevelId = lv.id;               // store the chosen id, then pick a character
+          Sfx.confirm();
+          screen = 'select';
+        }
+      }
+      else if (BACK(e.code)) { e.preventDefault(); /* nothing precedes level select yet — silent dead-end */ }
       return;
     }
     if (screen === 'pausemenu') {
-      if (LEFT(e.code))  { e.preventDefault(); pauseIndex = 0; }
-      else if (RIGHT(e.code)) { e.preventDefault(); pauseIndex = 1; }
+      if (LEFT(e.code))  { e.preventDefault(); if (pauseIndex !== 0) { pauseIndex = 0; Sfx.move(); } }
+      else if (RIGHT(e.code)) { e.preventDefault(); if (pauseIndex !== 1) { pauseIndex = 1; Sfx.move(); } }
       else if (CONFIRM(e.code)) {
         e.preventDefault();
+        Sfx.confirm();
         if (pauseIndex === 0) resumeGame();
         else screen = 'select';                       // restart from character select
       }
       return;
     }
     if (screen === 'select') {
-      if (LEFT(e.code))  { e.preventDefault(); selIndex = Math.max(0, selIndex - 1); }
-      else if (RIGHT(e.code)) { e.preventDefault(); selIndex = Math.min(CHARACTERS.length - 1, selIndex + 1); }
+      if (LEFT(e.code))  { e.preventDefault(); if (selIndex > 0) { selIndex--; Sfx.move(); } }
+      else if (RIGHT(e.code)) { e.preventDefault(); if (selIndex < CHARACTERS.length - 1) { selIndex++; Sfx.move(); } }
+      else if (BACK(e.code)) { e.preventDefault(); Sfx.back(); screen = 'levelselect'; } // back to level select
       else if (CONFIRM(e.code)) {
         e.preventDefault();
         const c = CHARACTERS[selIndex];
-        if (c.locked) lockShake = 0.35;               // can't pick this one yet
-        else { player.setCharacter(c); screen = 'instructions'; }
+        if (c.locked) { lockShake = 0.35; Sfx.locked(); }  // can't pick this one yet
+        else { Sfx.confirm(); player.setCharacter(c); screen = 'instructions'; }
       }
       return;
     }
     if (screen === 'gameComplete') {
-      if (CONFIRM(e.code) && gcState && gcState.btnActive) {
+      if (!gcState || !gcState.btnActive) return;   // buttons not live yet
+      if (LEFT(e.code))  { e.preventDefault(); if (gcState.gcIndex !== 0) { gcState.gcIndex = 0; Sfx.move(); } }
+      else if (RIGHT(e.code)) { e.preventDefault(); if (gcState.gcIndex !== 1) { gcState.gcIndex = 1; Sfx.move(); } }
+      else if (CONFIRM(e.code)) {
         e.preventDefault();
+        Sfx.confirm();
+        const home = gcState.gcIndex === 0;
         gcState = null;
-        screen = 'select';   // straight back to character select — not a hub
+        screen = home ? 'levelselect' : 'select'; // Home → level select; Start over → character select
       }
       return;
     }
@@ -223,6 +268,7 @@
     }
     if (CONFIRM(e.code) && (screen === 'instructions' || screen === 'complete')) {
       e.preventDefault();
+      Sfx.confirm();
       startPlaying();
       return;
     }
@@ -243,6 +289,7 @@
     if (dt > MAX_FRAME) dt = MAX_FRAME;
     blink += dt;
     if (lockShake > 0) lockShake -= dt;
+    if (levelShake > 0) levelShake -= dt;
 
     if (!paused && screen === 'playing') {
       acc += dt;
@@ -274,7 +321,9 @@
     if (screen === 'playing' || screen === 'pausemenu') drawHud();
     if (Sfx.isMuted()) drawMuteIcon();
 
-    if (screen === 'select') {
+    if (screen === 'levelselect') {
+      drawLevelSelect();
+    } else if (screen === 'select') {
       drawSelect();
     } else if (screen === 'instructions') {
       drawInstructions();
@@ -374,6 +423,94 @@
     ctx.lineTo(hx + 9 * Math.cos(tan + 0.5), hy + 9 * Math.sin(tan + 0.5));
     ctx.lineTo(hx + 9 * Math.cos(tan - 0.5), hy + 9 * Math.sin(tan - 0.5));
     ctx.closePath(); ctx.fill();
+  }
+
+  // Level select: a 3x2 grid of level cards over the dimmed world. Arrows move
+  // the focus, Space/Enter confirms (unlocked only), Esc/Backspace goes back.
+  function drawLevelSelect() {
+    ctx.fillStyle = 'rgba(20,10,40,0.55)';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    const pw = 860, ph = 480, px = (VIEW_W - pw) / 2, py = (VIEW_H - ph) / 2;
+    roundRect(px, py, pw, ph, 28);
+    ctx.fillStyle = '#fff7ec'; ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#e8622c'; ctx.font = '700 40px system-ui, sans-serif';
+    ctx.fillText('Choose a level', VIEW_W / 2, py + 44);
+
+    // Grid geometry (3 columns, 2 rows) sized to fill the card.
+    const COLS = 3, ROWS = 2, pad = 40, gapX = 24, gapY = 22;
+    const gridTop = py + 82, gridBottom = py + ph - 52;
+    const cardW = (pw - pad * 2 - gapX * (COLS - 1)) / COLS;
+    const cardH = (gridBottom - gridTop - gapY * (ROWS - 1)) / ROWS;
+
+    LEVELS.forEach((lv, i) => {
+      const c = i % COLS, r = (i / COLS) | 0;
+      let bx = px + pad + c * (cardW + gapX);
+      const by = gridTop + r * (cardH + gapY);
+      const focused = i === levelIndex;
+      if (!lv.unlocked && focused && levelShake > 0) bx += Math.sin(levelShake * 50) * 4;
+      drawLevelCard(lv, bx, by, cardW, cardH, focused);
+    });
+
+    // Prompt reflects the focused card's state.
+    const pulse = 0.6 + 0.4 * Math.abs(Math.sin(blink * 2.2));
+    ctx.globalAlpha = pulse;
+    const sel = LEVELS[levelIndex];
+    if (sel.unlocked) {
+      ctx.fillStyle = '#3a8f2e'; ctx.font = '700 26px system-ui, sans-serif';
+      ctx.fillText('Press SPACE to choose', VIEW_W / 2, py + ph - 26);
+    } else {
+      ctx.fillStyle = '#9aa6bf'; ctx.font = '700 24px system-ui, sans-serif';
+      ctx.fillText('Coming soon', VIEW_W / 2, py + ph - 26);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // One level card: preview thumbnail, number chip, name + state, lock treatment,
+  // and a focus ring. Locked cards get a dimming veil and a padlock.
+  function drawLevelCard(lv, x, y, w, h, focused) {
+    const previewH = Math.round(h * 0.60);
+
+    roundRect(x, y, w, h, 16);
+    ctx.fillStyle = '#f3e7d2'; ctx.fill();
+
+    // Preview thumbnail, clipped to a rounded region; dimmed if locked.
+    ctx.save();
+    roundRect(x + 6, y + 6, w - 12, previewH, 10); ctx.clip();
+    lv.preview(ctx, x + 6, y + 6, w - 12, previewH);
+    if (!lv.unlocked) { ctx.fillStyle = 'rgba(30,24,40,0.45)'; ctx.fillRect(x + 6, y + 6, w - 12, previewH); }
+    ctx.restore();
+    roundRect(x + 6, y + 6, w - 12, previewH, 10);
+    ctx.lineWidth = 3; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+
+    // Level-number chip, top-left.
+    ctx.fillStyle = lv.unlocked ? '#e8622c' : '#9aa6bf';
+    ctx.beginPath(); ctx.arc(x + 22, y + 22, 14, 0, 7); ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+    ctx.fillStyle = '#fff7ec'; ctx.font = '700 18px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(lv.id), x + 22, y + 23);
+
+    // Name + state below the preview.
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = lv.unlocked ? '#2f2233' : '#8a7f72';
+    ctx.font = '700 20px system-ui, sans-serif';
+    ctx.fillText(lv.displayName, x + w / 2, y + previewH + 22);
+    ctx.fillStyle = lv.unlocked ? '#3a8f2e' : '#9aa6bf';
+    ctx.font = '600 14px system-ui, sans-serif';
+    ctx.fillText(lv.unlocked ? lv.blurb : 'Coming soon', x + w / 2, y + previewH + 42);
+
+    // Padlock for locked cards, top-right of the preview.
+    if (!lv.unlocked) drawLock(x + w - 24, y + 16);
+
+    // Focus ring.
+    roundRect(x, y, w, h, 16);
+    if (focused) { ctx.lineWidth = 5; ctx.strokeStyle = lv.unlocked ? '#3a8f2e' : '#9aa6bf'; }
+    else { ctx.lineWidth = 3; ctx.strokeStyle = '#d8c9ad'; }
+    ctx.stroke();
   }
 
   // Character select: a big animated preview of the highlighted friend, with a
@@ -512,8 +649,14 @@
       ctx.fillText('×' + s.disp[tier], x - 4, cy + 1);
     });
 
-    // Home button — appears after the counts settle. Wordless house glyph.
-    if (s.btnAlpha > 0) drawHomeButton(VIEW_W / 2, py + 400, s.btnAlpha, s.btnActive);
+    // Buttons — appear after the counts settle. Home (to level select) on the
+    // left, Start over (to character select) on the right. Left/Right moves the
+    // focus; the focused one is ringed and pulses once active.
+    if (s.btnAlpha > 0) {
+      const by = py + 400, dx = 66;
+      drawHomeButton(VIEW_W / 2 - dx, by, s.btnAlpha, s.btnActive, s.gcIndex === 0);
+      drawStartOverButton(VIEW_W / 2 + dx, by, s.btnAlpha, s.btnActive, s.gcIndex === 1);
+    }
   }
 
   function drawConfetti(bits) {
@@ -558,17 +701,28 @@
     ctx.restore();
   }
 
-  // A wordless "home" button: a house glyph on a rounded cap. Fades in via alpha
-  // and gently pulses once active. Activated by ENTER/SPACE (see keydown).
-  function drawHomeButton(cx, cy, alpha, active) {
-    const pulse = active ? 0.6 + 0.4 * Math.abs(Math.sin(blink * 2.2)) : 1;
-    ctx.save();
-    ctx.globalAlpha = alpha;
+  // The shared rounded cap + focus ring for the two end-screen buttons. The
+  // focused button is ringed green (and pulses once live); the other is muted.
+  function endBtnBase(cx, cy, alpha, active, focused) {
     const w = 92, h = 76;
     roundRect(cx - w / 2, cy - h / 2, w, h, 16);
     ctx.fillStyle = '#f3e7d2'; ctx.fill();
-    ctx.globalAlpha = alpha * pulse; ctx.lineWidth = 5; ctx.strokeStyle = '#3a8f2e'; ctx.stroke();
+    if (focused) {
+      const pulse = active ? 0.6 + 0.4 * Math.abs(Math.sin(blink * 2.2)) : 1;
+      ctx.globalAlpha = alpha * pulse; ctx.lineWidth = 5; ctx.strokeStyle = '#3a8f2e';
+    } else {
+      ctx.lineWidth = 3; ctx.strokeStyle = '#d8c9ad';
+    }
+    ctx.stroke();
     ctx.globalAlpha = alpha;
+  }
+
+  // A wordless "home" button: a house glyph on a rounded cap. Returns to level
+  // select. Fades in via alpha; pulses while focused and active.
+  function drawHomeButton(cx, cy, alpha, active, focused) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    endBtnBase(cx, cy, alpha, active, focused);
     ctx.strokeStyle = '#2f2233'; ctx.lineWidth = 4; ctx.lineJoin = 'round';
     const hw = 30, eaveY = cy - 4, roofY = cy - 20, baseY = cy + 20;
     ctx.fillStyle = '#e8622c'; ctx.beginPath();          // roof
@@ -579,6 +733,18 @@
     ctx.fillStyle = '#fff7ec'; ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#2f2233';                            // door
     roundRect(cx - 7, baseY - 16, 14, 16, 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // A wordless "start over" button: a circular arrow (looping right-around-to-
+  // left) on a rounded cap. Returns to character select. Same look as the pause
+  // menu's restart glyph.
+  function drawStartOverButton(cx, cy, alpha, active, focused) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    endBtnBase(cx, cy, alpha, active, focused);
+    ctx.fillStyle = '#2f7fd6'; ctx.strokeStyle = '#2f7fd6';
+    drawRestartIcon(cx, cy);
     ctx.restore();
   }
 
