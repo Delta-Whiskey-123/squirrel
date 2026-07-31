@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.5.0** (2026-07-30)
+**Current version: v0.6.0** (2026-07-30)
 
 ---
 
@@ -32,7 +32,8 @@ Two controls, plus menu keys — the whole input surface for a 4-year-old is:
 | Move | ← / → (or A / D) |
 | Jump / double jump | Space (press again in mid-air for the second jump) |
 | Choose / confirm (menus) | Space or Enter |
-| Pause menu | Escape |
+| Back (menus) | Backspace |
+| Pause menu / Back to select | Escape |
 
 There is a dev-only shortcut: during play, **type `fast`** to warp to 10 tiles
 short of the exit hut, so the end-of-game badge sequence can be reached without
@@ -78,8 +79,19 @@ Distinct character abilities and more levels are next.
   player exits through the final level's door. Dims the world, fades in gentle
   confetti, plays the fanfare, shows a spoken-aloud headline, the earned badge
   (PNG art with a procedural placeholder fallback if the file is missing), and
-  the run's per-tier coin counts animating up from zero with soft ticks. A
-  wordless home button appears after a beat and returns to character select.
+  the run's per-tier coin counts animating up from zero with soft ticks. Two
+  buttons fade in after a beat: **Home** (returns to level select) and **Start
+  Over** (blue circular restart arrow, returns to character select).
+- **Level select screen**: entry point before character select. 3×2 grid showing
+  six level slots: Training (Woodland Path, unlocked), Alpine (locked "Coming
+  Soon"), and four placeholder slots (locked). Procedural vector preview art
+  for each card. Cursor remembers last chosen level on re-entry. Grid navigation
+  via arrow keys; Enter/Space to select, Backspace to go back (dead-end for now).
+- **Menu sounds**: four friendly synthesised SFX wired across all menus — move
+  (soft cursor nav blip), confirm (upward two-note lift when advancing),
+  locked (low downward "nuh-uh" when trying a locked item), back (falling
+  counter to confirm). All routed through existing master gain, so M-mute
+  covers everything. Reused existing WebAudio synthesizer; no new dependencies.
 
 **Design rules honoured** (from the spec)
 - No failure, no lives, no score, no timer — falling gently respawns you.
@@ -90,8 +102,9 @@ Distinct character abilities and more levels are next.
 - **Distinct character abilities** for Blue/Grey Ted Ted: they currently play
   identically to Yellow (Battenberg has triple-jump; planned: unique traits or
   power-ups for the rest of the roster).
-- **More levels** and data-driven level loading; badge wall and hub world (the
-  home button currently returns to character select, not a hub — planned).
+- **More levels** (Alpine and the four Coming Soon slots): unlock logic and
+  per-level geometry/theming once they're authored. Save system hooks already
+  in place for future unlock-state persistence.
 - **Save system**: persist chosen character and best gem counts/badges earned
   per level (explicitly deferred — each run starts fresh for now).
 - **Particle effects on pickup** (the badge screen has confetti; sparkle pops
@@ -102,6 +115,35 @@ Distinct character abilities and more levels are next.
 ---
 
 ## Version history
+
+### v0.6.0 — Level select & menu sounds (2026-07-30)
+- Built the **level select screen** as the new entry point before character
+  select. A **3×2 grid** displays six level slots: Training (Woodland Path,
+  unlocked), Alpine (locked "Coming Soon"), and four placeholder slots (locked
+  "Coming Soon"). Each card shows procedural vector preview art, level number,
+  name, and lock state. Cursor remembers the last-chosen level on re-entry, and
+  all six slots are navigable via arrow keys (UP/DOWN/LEFT/RIGHT). Confirm via
+  Space/Enter to select an unlocked level; attempting a locked level wobbles the
+  card and plays a deny sound. Backspace navigates back (dead-end for now; will
+  connect to a hub world in a future milestone). Character select and badge
+  screen now return to level select instead of character select. Level id is
+  threaded through to gameplay and stored for future per-level save data.
+- Added **four menu sounds**: move (soft triangle blip, plays on cursor nav),
+  confirm (upward two-note lift when advancing), locked (low downward "nuh-uh"
+  when trying a locked item), and back (falling counterpoint to confirm). All
+  wired across all menus (level select, character select, pause menu, badge
+  screen buttons, and instructions→play transition). All sounds route through
+  the existing master gain, so the M-mute toggle covers everything. Reused the
+  existing WebAudio synthesizer — no new dependencies or audio files.
+- Added **js/levels.js** — a new levels roster file mirroring the characters.js
+  pattern, containing the LEVELS config array and four procedural preview-draw
+  functions. Includes a clearly-marked SAVE HOOK where unlock state will later
+  be driven by a save file.
+- Updated **badge screen buttons**: the home button now returns to level select
+  (was character select); added a second **Start Over** button (blue circular
+  restart arrow, reused from the pause menu) that returns to character select.
+  Both buttons are highlight-able via LEFT/RIGHT, with focused buttons pulsing
+  green and unfocused tan.
 
 ### v0.5.0 — Badge celebration, fanfare & fourth character (2026-07-30)
 - Added **Battenberg**, a fourth playable character with a **triple-jump**
@@ -166,6 +208,7 @@ Distinct character abilities and more levels are next.
 - Tag `v0.3.0` — character select + pause menu (2026-07-29).
 - Tag `v0.4.0` — collectibles, audio, third character (2026-07-30).
 - Tag `v0.5.0` — badge celebration, fanfare, fourth character (2026-07-30).
+- Tag `v0.6.0` — level select screen + menu sounds (2026-07-30).
 
 ---
 
@@ -182,6 +225,7 @@ style.css             full-window letterboxed canvas
   level.js            level data, platforms, gems, exit hut, rendering
   camera.js           follow camera (horizontal dead-zone + vertical pan)
   characters.js       the roster + procedural draw functions (Ted Teds + Battenberg)
+  levels.js           level roster, config (id/name/theme/unlock state), procedural preview-draw functions
   player.js           movement, double/triple jump, animation & ear-physics state
 /data                 (reserved for data-driven levels)
 /Tiles                pixel-art tile pack (Anokolisa) — not yet wired in
