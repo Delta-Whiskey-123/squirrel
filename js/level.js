@@ -140,6 +140,22 @@ class Level {
     this.springs.push({ x: 3452, y: -257, w: 34, bounce: B, vertical: true }); // ~X45, on the launch platform
   }
 
+  // The nearest solid surface top at or below `feetY`, within the x-span
+  // [x, x+w] — the ground a straight drop would land on (platforms, terrain, or
+  // the full-width floor band). Returns Infinity if nothing is below (past the
+  // right edge). Used to cast the player's ground shadow. Mirrors the falling
+  // branch of moveAndCollide, but as a horizontal-only downward probe.
+  surfaceBelow(x, w, feetY) {
+    let surface = feetY <= this.floorTopY ? this.floorTopY : Infinity;
+    const left = x, right = x + w;
+    for (const r of this.solids) {
+      if (right <= r.x || left >= r.x + r.w) continue;  // no horizontal overlap
+      if (r.y < feetY - 0.5) continue;                  // surface must be at/below the feet
+      if (r.y < surface) surface = r.y;
+    }
+    return surface;
+  }
+
   // Is the box's feet resting on a spring? (called on landing) → returns it.
   springAt(x, w, feetY) {
     for (const s of this.springs) {

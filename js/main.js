@@ -47,7 +47,7 @@
   let selectedLevelId = LEVELS[0].id; // chosen level; defaults to 1 (crash guard)
   let selIndex = 0;    // highlighted character in the select row
   let lockShake = 0;   // brief wobble when a locked character is confirmed
-  let pauseIndex = 0;  // highlighted button in the pause menu (0 resume, 1 restart)
+  let pauseIndex = 0;  // highlighted button in the pause menu (0 resume, 1 mute, 2 restart)
   let gems = { A: 0, B: 0, C: 0 }; // collected count per tier (reset each run)
   let gcState = null;              // end-screen animation state (see startGameComplete)
 
@@ -70,6 +70,10 @@
     // loads the same Woodland Path — but the id flows through here, so adding a
     // level later is just a branch inside level.load().
     level.load(selectedLevelId);
+    // Point the ambient pollen at this level's theme (base look); the player's
+    // runtime density/enable choice still composes over it. Defaults if unknown.
+    const lv = LEVELS.find((l) => l.id === selectedLevelId);
+    Particles.setTheme(lv ? lv.theme : 'training');
     player.reset();
     camera.snapTo(level, player);
     Input.clearAll();  // drop any key state left over from the menus
@@ -226,13 +230,14 @@
       return;
     }
     if (screen === 'pausemenu') {
-      if (LEFT(e.code))  { e.preventDefault(); if (pauseIndex !== 0) { pauseIndex = 0; Sfx.move(); } }
-      else if (RIGHT(e.code)) { e.preventDefault(); if (pauseIndex !== 1) { pauseIndex = 1; Sfx.move(); } }
+      const PCOUNT = 3; // Resume, Mute, Start over
+      if (LEFT(e.code))  { e.preventDefault(); pauseIndex = (pauseIndex + PCOUNT - 1) % PCOUNT; Sfx.move(); }
+      else if (RIGHT(e.code)) { e.preventDefault(); pauseIndex = (pauseIndex + 1) % PCOUNT; Sfx.move(); }
       else if (CONFIRM(e.code)) {
         e.preventDefault();
-        Sfx.confirm();
-        if (pauseIndex === 0) resumeGame();
-        else screen = 'select';                       // restart from character select
+        if (pauseIndex === 0) { Sfx.confirm(); resumeGame(); }
+        else if (pauseIndex === 1) { Sfx.toggleMute(); }        // stays on pause menu
+        else { Sfx.confirm(); screen = 'select'; }              // restart from character select
       }
       return;
     }
@@ -291,6 +296,10 @@
     if (lockShake > 0) lockShake -= dt;
     if (levelShake > 0) levelShake -= dt;
 
+    // Ambient pollen drifts every frame, on every screen, using the real frame dt
+    // (frame-rate independent). Cheap no-op when disabled.
+    Particles.update(dt, camera.x, camera.y);
+
     if (!paused && screen === 'playing') {
       acc += dt;
       while (acc >= STEP) {
@@ -311,15 +320,23 @@
   }
 
   function render() {
-    // Sky.
-    ctx.fillStyle = '#bfe3ff';
+    // Sky. A soft daytime blue, kept a touch deeper than the platforms' pale
+    // windows so the warm-white pollen glints still read against it (particles.js).
+    ctx.fillStyle = '#96c8f2';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    // Ambient pollen: far + mid bands sit in the air behind the world.
+    Particles.drawBack(ctx);
 
     level.draw(ctx, camera.x, camera.y, VIEW_W, VIEW_H);
     player.draw(ctx, camera.x, camera.y);
 
+    // Optional near band reads as "in front" (off by default).
+    Particles.drawFront(ctx);
+
     if (screen === 'playing' || screen === 'pausemenu') drawHud();
-    if (Sfx.isMuted()) drawMuteIcon();
+    if (Sfx.isMuted()) drawMuteIcon(screen === 'playing' ? 90 : 0); // dodge the Menu button
+    if (screen === 'playing') drawMenuButton();
 
     if (screen === 'levelselect') {
       drawLevelSelect();
@@ -339,9 +356,11 @@
     }
   }
 
-  // Small speaker-with-a-slash, top-right, shown while sound is muted.
-  function drawMuteIcon() {
-    const x = VIEW_W - 40, y = 24;
+  // Small speaker-with-a-slash, top-right, shown while sound is muted. Accepts
+  // an extra leftward offset so it doesn't collide with the Menu button during
+  // play.
+  function drawMuteIcon(offsetX) {
+    const x = VIEW_W - 40 - (offsetX || 0), y = 24;
     ctx.fillStyle = 'rgba(47,34,51,0.85)';
     ctx.beginPath();
     ctx.moveTo(x, y - 4); ctx.lineTo(x + 5, y - 4); ctx.lineTo(x + 11, y - 9);
@@ -349,6 +368,19 @@
     ctx.closePath(); ctx.fill();
     ctx.strokeStyle = 'rgba(47,34,51,0.85)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(x + 15, y - 8); ctx.lineTo(x + 23, y + 8); ctx.stroke();
+  }
+
+  // Top-right "Menu" button, shown only during play. Visual only for now —
+  // opens the door to touch/mouse input later; Escape is still the only way
+  // to reach the pause menu today.
+  function drawMenuButton() {
+    const bw = 78, bh = 30, x = VIEW_W - bw - 12, y = 10;
+    roundRect(x, y, bw, bh, 10);
+    ctx.fillStyle = 'rgba(255,247,236,0.92)'; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+    ctx.fillStyle = '#2f2233'; ctx.font = '600 18px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Menu', x + bw / 2, y + bh / 2 + 1);
   }
 
   // Top-left counter: a coin per tier with its running collected count.
@@ -364,8 +396,9 @@
     }
   }
 
-  // The pause menu: two big buttons — Resume, or Start over (back to select).
-  // Left/Right highlights, Space/Enter confirms, Escape resumes.
+  // The pause menu: three buttons — Resume, Mute/Unmute, or Start over (back to
+  // select). Left/Right cycles (with wraparound), Space/Enter confirms, Escape
+  // resumes. Mute toggles in place and does not close the menu.
   function drawPause() {
     ctx.fillStyle = 'rgba(20,10,40,0.55)';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -379,13 +412,16 @@
     ctx.fillStyle = '#e8622c'; ctx.font = '700 40px system-ui, sans-serif';
     ctx.fillText('Paused', VIEW_W / 2, py + 50);
 
-    const bw = 200, bh = 130, gap = 40, by = py + 96;
+    const bw = 160, bh = 130, gap = 20, by = py + 96;
+    const totalW = bw * 3 + gap * 2, startX = VIEW_W / 2 - totalW / 2;
+    const muted = Sfx.isMuted();
     const buttons = [
-      { label: 'Resume',     color: '#3a8f2e', icon: 'play' },
-      { label: 'Start over', color: '#2f7fd6', icon: 'restart' },
+      { label: 'Resume',                  color: '#3a8f2e', icon: 'play' },
+      { label: muted ? 'Unmute' : 'Mute', color: '#8a6d3b', icon: 'speaker' },
+      { label: 'Start over',              color: '#2f7fd6', icon: 'restart' },
     ];
     buttons.forEach((b, i) => {
-      const bx = VIEW_W / 2 + (i === 0 ? -(bw + gap / 2) : gap / 2);
+      const bx = startX + i * (bw + gap);
       roundRect(bx, by, bw, bh, 18);
       ctx.fillStyle = '#f3e7d2'; ctx.fill();
       if (i === pauseIndex) { ctx.lineWidth = 5; ctx.strokeStyle = b.color; }
@@ -394,9 +430,11 @@
 
       const cx = bx + bw / 2, cyi = by + 48;
       ctx.fillStyle = b.color; ctx.strokeStyle = b.color;
-      if (b.icon === 'play') drawPlayIcon(cx, cyi); else drawRestartIcon(cx, cyi);
+      if (b.icon === 'play') drawPlayIcon(cx, cyi);
+      else if (b.icon === 'restart') drawRestartIcon(cx, cyi);
+      else drawSpeakerIcon(cx, cyi, muted);
 
-      ctx.fillStyle = '#2f2233'; ctx.font = '600 24px system-ui, sans-serif';
+      ctx.fillStyle = '#2f2233'; ctx.font = '600 22px system-ui, sans-serif';
       ctx.fillText(b.label, cx, by + bh - 28);
     });
 
@@ -423,6 +461,22 @@
     ctx.lineTo(hx + 9 * Math.cos(tan + 0.5), hy + 9 * Math.sin(tan + 0.5));
     ctx.lineTo(hx + 9 * Math.cos(tan - 0.5), hy + 9 * Math.sin(tan - 0.5));
     ctx.closePath(); ctx.fill();
+  }
+
+  // Speaker glyph for the pause-menu Mute/Unmute button: a cone body, plus a
+  // diagonal slash when muted or two small sound-wave arcs when not.
+  function drawSpeakerIcon(cx, cy, muted) {
+    ctx.beginPath();
+    ctx.moveTo(cx - 16, cy - 5); ctx.lineTo(cx - 9, cy - 5); ctx.lineTo(cx - 1, cy - 13);
+    ctx.lineTo(cx - 1, cy + 13); ctx.lineTo(cx - 9, cy + 5); ctx.lineTo(cx - 16, cy + 5);
+    ctx.closePath(); ctx.fill();
+    ctx.lineWidth = 3; ctx.lineCap = 'round';
+    if (muted) {
+      ctx.beginPath(); ctx.moveTo(cx + 3, cy - 11); ctx.lineTo(cx + 15, cy + 11); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(cx + 4, cy, 8, -0.6, 0.6); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx + 4, cy, 13, -0.5, 0.5); ctx.stroke();
+    }
   }
 
   // Level select: a 3x2 grid of level cards over the dimmed world. Arrows move

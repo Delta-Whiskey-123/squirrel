@@ -270,6 +270,27 @@ class Player {
     const cx = this.x + this.w / 2 - camX;
     const feetY = this.y + this.h - camY;
 
+    // --- Ground-cast shadow. Drawn on the surface *below* the feet (not glued to
+    //     the character), so it stays on the ground while the character rises. It
+    //     fades and shrinks with height: full at contact, gone once the feet are
+    //     FADE_H above the surface — so it vanishes when airborne and grows back
+    //     as the character descends toward a landing. ---
+    const FADE_H = 60;                                    // px above the surface where it's fully gone
+    const surface = this.level.surfaceBelow(this.x, this.w, this.y + this.h);
+    if (surface !== Infinity) {
+      const t = Math.max(0, Math.min(1, 1 - (surface - (this.y + this.h)) / FADE_H));
+      if (t > 0) {
+        const sc = 0.55 + 0.45 * t;                       // grows as it nears the ground
+        ctx.save();
+        ctx.globalAlpha = 0.16 * t;
+        ctx.fillStyle = '#28190f';
+        ctx.beginPath();
+        ctx.ellipse(cx, surface - camY + 1, 20 * sc, 4.5 * sc, 0, 0, 7);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
     // Pose from motion: walking legs, air stretch, landing squash, idle bob.
     const moving = this.onGround && Math.abs(this.vx) > 12;
     const leg = moving ? Math.sin(this.walkPhase) * 4.5 : 0;
@@ -278,7 +299,7 @@ class Player {
     if (this.landTimer > 0) sq = 1 - 0.16 * (this.landTimer / 0.12);
     if (this.onGround && !moving) sq += Math.sin(this.animTime * 3) * 0.02;
 
-    this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq, t: this.animTime, earDroop: this.earDroop, earSway: this.earSway });
+    this.character.draw(ctx, cx, feetY, 1, { face: this.facing, leg, sq, t: this.animTime, earDroop: this.earDroop, earSway: this.earSway, noShadow: true });
   }
 
   setCharacter(c) {

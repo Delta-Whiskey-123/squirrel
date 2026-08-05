@@ -38,8 +38,10 @@ function drawLion(ctx, cx, feetY, s, o) {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const hy = -40;
 
-  ctx.fillStyle = 'rgba(40,25,15,0.16)';
-  ctx.beginPath(); ctx.ellipse(0, 1, 20, 4.5, 0, 0, 7); ctx.fill();
+  if (!o.noShadow) {  // player casts its own ground shadow instead (see player.draw)
+    ctx.fillStyle = 'rgba(40,25,15,0.16)';
+    ctx.beginPath(); ctx.ellipse(0, 1, 20, 4.5, 0, 0, 7); ctx.fill();
+  }
 
   ctx.fillStyle = MANE; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
   [[-8, leg], [8, -leg]].forEach(([lx, dy]) => { _rr(ctx, lx - 4, -11 + dy, 8, 12 - dy, 3.5); ctx.fill(); ctx.stroke(); });
@@ -112,8 +114,10 @@ function drawBlueRabbit(ctx, cx, feetY, s, o) {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const hy = -40;
 
-  ctx.fillStyle = 'rgba(40,25,15,0.16)';
-  ctx.beginPath(); ctx.ellipse(0, 1, 18, 4.5, 0, 0, 7); ctx.fill();
+  if (!o.noShadow) {  // player casts its own ground shadow instead (see player.draw)
+    ctx.fillStyle = 'rgba(40,25,15,0.16)';
+    ctx.beginPath(); ctx.ellipse(0, 1, 18, 4.5, 0, 0, 7); ctx.fill();
+  }
 
   // Legs, body, belly, arms — same lovey build as Yellow.
   ctx.fillStyle = BLU; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
@@ -201,8 +205,10 @@ function drawGreyRabbit(ctx, cx, feetY, s, o) {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const hy = -40;
 
-  ctx.fillStyle = 'rgba(40,25,15,0.16)';
-  ctx.beginPath(); ctx.ellipse(0, 1, 18, 4.5, 0, 0, 7); ctx.fill();
+  if (!o.noShadow) {  // player casts its own ground shadow instead (see player.draw)
+    ctx.fillStyle = 'rgba(40,25,15,0.16)';
+    ctx.beginPath(); ctx.ellipse(0, 1, 18, 4.5, 0, 0, 7); ctx.fill();
+  }
 
   ctx.fillStyle = GREY; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
   [[-8, leg], [8, -leg]].forEach(([lx, dy]) => { _rr(ctx, lx - 4, -11 + dy, 8, 12 - dy, 3.5); ctx.fill(); ctx.stroke(); });
@@ -282,8 +288,10 @@ function drawBattenberg(ctx, cx, feetY, s, o) {
   ctx.rotate(face * 0.05);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 
-  ctx.fillStyle = 'rgba(40,25,15,0.16)';
-  ctx.beginPath(); ctx.ellipse(0, 1, 22, 4.5, 0, 0, 7); ctx.fill();
+  if (!o.noShadow) {  // player casts its own ground shadow instead (see player.draw)
+    ctx.fillStyle = 'rgba(40,25,15,0.16)';
+    ctx.beginPath(); ctx.ellipse(0, 1, 22, 4.5, 0, 0, 7); ctx.fill();
+  }
 
   ctx.strokeStyle = OUT; ctx.lineWidth = 2;
 
@@ -326,6 +334,109 @@ function drawBattenberg(ctx, cx, feetY, s, o) {
   ctx.restore();
 }
 
+// Hot Chocolate — a mug of cocoa. A single tall rounded ceramic body (no arms
+// or legs) with a big looped handle on the right, so he hops as one blob via
+// squash/stretch rather than swinging limbs. A red band circles the rim; above
+// it a raised milk-chocolate dome mounds up with a soft gloss, and a tall
+// soft-serve cream swirl — dotted with evenly-spread sprinkles — sits on top.
+// A pink-and-red candy-striped straw is inserted into the left side of the
+// cream. Happy cuddly-toy face on the front: black shine eyes, a smile and pink
+// blush. Ignores the leg/ear params.
+function drawHotChocolate(ctx, cx, feetY, s, o) {
+  o = o || {};
+  const face = o.face || 0, sq = o.sq || 1;
+  const CERAMIC = '#EFE7D8', OUT = '#3B2A1B', RED = '#D8382E',
+        CHOC_D = '#5E3D24', CHOC_M = '#7A5233', SPRK = '#4A3120',
+        CREAM = '#FFF6E4', CREAMSH = '#ECDCBC', PINK = '#F3A9B2', INK = '#1A140E';
+
+  ctx.save();
+  ctx.translate(cx, feetY);
+  ctx.scale(1 / Math.sqrt(sq), sq);     // squash/stretch about the feet
+  ctx.scale(s, s);
+  ctx.rotate(face * 0.05);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+  if (!o.noShadow) {  // player casts its own ground shadow instead (see player.draw)
+    ctx.fillStyle = 'rgba(40,25,15,0.16)';
+    ctx.beginPath(); ctx.ellipse(0, 1, 20, 4.5, 0, 0, 7); ctx.fill();
+  }
+
+  // Looped handle on the right, drawn first so its ends tuck under the body.
+  // An outlined C: a fat dark stroke with a thinner ceramic stroke over it.
+  ctx.strokeStyle = OUT; ctx.lineWidth = 9;
+  ctx.beginPath(); ctx.arc(19, -32, 12, -1.85, 1.85); ctx.stroke();
+  ctx.strokeStyle = CERAMIC; ctx.lineWidth = 5.5;
+  ctx.beginPath(); ctx.arc(19, -32, 12, -1.85, 1.85); ctx.stroke();
+
+  // Tall rounded mug body — generous corner radius reads as the rounded underside.
+  ctx.fillStyle = CERAMIC; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+  _rr(ctx, -17, -56, 34, 54, 12); ctx.fill(); ctx.stroke();
+
+  // Single red band circling the rim (clipped to the body).
+  ctx.save();
+  _rr(ctx, -17, -56, 34, 54, 12); ctx.clip();
+  ctx.fillStyle = RED; ctx.fillRect(-17, -54, 34, 6);
+  ctx.restore();
+
+  // Domed chocolate mounding up above the red rim; a lighter cocoa fill and a
+  // soft gloss streak on the upper dome give it roundness rather than a flat disc.
+  ctx.beginPath(); ctx.moveTo(-15.5, -54); ctx.quadraticCurveTo(0, -69, 15.5, -54); ctx.closePath();
+  ctx.fillStyle = CHOC_D; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 1.8; ctx.stroke();
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(-15.5, -54); ctx.quadraticCurveTo(0, -69, 15.5, -54); ctx.closePath(); ctx.clip();
+  ctx.fillStyle = CHOC_M; ctx.beginPath(); ctx.ellipse(0, -60, 13, 7.5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,240,210,0.22)'; ctx.beginPath(); ctx.ellipse(-4.5, -62, 5.5, 2.4, -0.35, 0, 7); ctx.fill();
+  ctx.restore();
+
+  // Cream swirl: stacked, slightly offset ellipses tapering to a soft-serve tip.
+  // Narrower base than the dome so the chocolate shows around it.
+  const swirl = [[-1, -62, 11, 5], [1, -66, 9.6, 4.8], [-1, -70, 7.3, 4.1],
+                 [1.3, -73.7, 4.8, 3.3], [0, -77, 2.7, 2.7]];
+  ctx.fillStyle = CREAM;
+  swirl.forEach(([mx, my, rx, ry]) => { ctx.beginPath(); ctx.ellipse(mx, my, rx, ry, 0, 0, 7); ctx.fill(); });
+  // Soft shading down the right of the mound for a little form.
+  ctx.fillStyle = CREAMSH;
+  swirl.slice(0, 4).forEach(([mx, my, rx, ry]) => { ctx.beginPath(); ctx.ellipse(mx + rx * 0.4, my + 1, rx * 0.5, ry * 0.7, 0, -0.6, 1.8); ctx.fill(); });
+
+  // Sprinkles spread evenly across the cream mound.
+  ctx.strokeStyle = SPRK; ctx.lineWidth = 1.5;
+  [[-7, -62, 0.4], [-1, -63, -0.7], [5, -62, 0.9], [-4, -66, -1.0], [3, -67, 0.3],
+   [-6, -70, 0.2], [1, -70, -0.9], [6, -69, 0.6], [-2, -73, 0.4], [2, -76, 0.1]].forEach(([sx, sy, a]) => {
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(a);
+    ctx.beginPath(); ctx.moveTo(-1.6, 0); ctx.lineTo(1.6, 0); ctx.stroke(); ctx.restore();
+  });
+
+  // Pink-and-red candy-striped straw inserted into the left side of the cream.
+  ctx.save();
+  ctx.translate(-8, -64); ctx.rotate(-0.55);
+  ctx.fillStyle = PINK; ctx.strokeStyle = OUT; ctx.lineWidth = 1.6;
+  _rr(ctx, -2.5, -26, 5, 28, 2.5); ctx.fill(); ctx.stroke();
+  ctx.save();
+  _rr(ctx, -2.5, -26, 5, 28, 2.5); ctx.clip();
+  ctx.strokeStyle = RED; ctx.lineWidth = 2.4;
+  for (let i = -26; i < 6; i += 6.5) { ctx.beginPath(); ctx.moveTo(-5, i); ctx.lineTo(5, i - 7); ctx.stroke(); }
+  ctx.restore();
+  ctx.restore();
+  // A cream lump seals the insertion so the straw reads as going into the cream.
+  ctx.fillStyle = CREAM; ctx.beginPath(); ctx.ellipse(-8.5, -62.5, 5.5, 4, 0.2, 0, 7); ctx.fill();
+  ctx.fillStyle = CREAMSH; ctx.beginPath(); ctx.ellipse(-6.7, -61.6, 2.8, 2, 0, -0.6, 1.8); ctx.fill();
+
+  // Cuddly-toy face on the mug front.
+  const ex = face * 1.3;
+  ctx.fillStyle = 'rgba(233,140,150,0.5)';
+  [-11, 11].forEach((bx) => { ctx.beginPath(); ctx.ellipse(bx + ex, -26, 3.6, 2.6, 0, 0, 7); ctx.fill(); });
+
+  [-6, 6].forEach((dx) => {
+    ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(dx + ex, -32, 2.8, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(dx + ex - 0.8, -33, 0.95, 0, 7); ctx.fill();
+  });
+
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.9;
+  ctx.beginPath(); ctx.arc(ex * 0.6, -27, 3.6, 0.2, Math.PI - 0.2); ctx.stroke();
+
+  ctx.restore();
+}
+
 // The roster.
 const CHARACTERS = [
   { id: 'yellow', name: 'Yellow Ted Ted', locked: false, draw: drawLion,
@@ -337,4 +448,5 @@ const CHARACTERS = [
     // Triple jump: two air jumps; the final one reaches 2x first-jump height.
     // Height scales with velocity^2, so velocity = sqrt(2) * JUMP_VELOCITY.
     jump: { airJumps: 2, lastAirJumpVel: Physics.JUMP_VELOCITY * Math.SQRT2 } },
+  { id: 'hotchoc', name: 'Hot Chocolate', locked: false, draw: drawHotChocolate },
 ];

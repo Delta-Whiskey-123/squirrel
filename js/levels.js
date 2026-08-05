@@ -25,7 +25,7 @@
 
 // Training — the Woodland Path: blue sky, grassy ground, a little tree and a coin.
 function drawTrainingPreview(ctx, x, y, w, h) {
-  ctx.fillStyle = '#bfe3ff'; ctx.fillRect(x, y, w, h);            // sky
+  ctx.fillStyle = '#96c8f2'; ctx.fillRect(x, y, w, h);            // sky (matches gameplay sky in main.js)
   const gy = y + h * 0.66;
   ctx.fillStyle = '#8a5a2b'; ctx.fillRect(x, gy, w, h - (gy - y)); // dirt
   ctx.fillStyle = '#5bbf4a'; ctx.fillRect(x, gy, w, Math.max(6, h * 0.10)); // grass

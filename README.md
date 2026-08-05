@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.6.5** (2026-07-31)
+**Current version: v0.7.0** (2026-08-04)
 
 ---
 
@@ -88,6 +88,17 @@ Distinct character abilities and more levels are next.
   Soon"), and four placeholder slots (locked). Procedural vector preview art
   for each card. Cursor remembers last chosen level on re-entry. Grid navigation
   via arrow keys; Enter/Space to select, Backspace to go back (dead-end for now).
+- **Ambient particle layer** ("pollen"): a parallaxing field of bright warm-white
+  light motes drifting in the air behind the world, for depth. The sky was
+  deepened to a soft blue (`#96c8f2`) so the fine motes read clearly against it.
+  Fixed recycling pool (no per-frame allocation), 2–3 depth bands that separate
+  as you walk, gentle non-uniform drift/sway/twinkle. Runtime `Particles` API
+  (enable/disable + Low/Medium/High density) ready for a future pause-menu
+  control; defaults to enabled at Medium. Per-level look is data-driven off the
+  level `theme`.
+- **Airborne character shadows**: the ground shadow is cast on the surface below
+  the character and fades out when airborne, growing back on the descent toward a
+  landing (via `Level.surfaceBelow`); applies to all four characters.
 - **Menu sounds**: four friendly synthesised SFX wired across all menus — move
   (soft cursor nav blip), confirm (upward two-note lift when advancing),
   locked (low downward "nuh-uh" when trying a locked item), back (falling
@@ -116,6 +127,48 @@ Distinct character abilities and more levels are next.
 ---
 
 ## Version history
+
+### v0.7.0 — Ambient particles & airborne shadows (2026-08-04)
+- Added an **ambient "pollen" particle layer** (`js/particles.js`): a gentle,
+  parallaxing field of bright warm-white light motes drifting in the air to give
+  the flat sky depth. Drawn in world-aware screen space — each speck slides
+  opposite the camera by a per-band **parallax factor**, so the bands visibly
+  separate from the ground as the squirrel walks.
+- **Deepened the sky** from the old pale `#bfe3ff` to a soft `#96c8f2`, so the
+  bright motes have enough contrast to read against it.
+- **Depth bands**: **far** (factor 0.32, r≈1.95px, α0.34), **mid** (0.55,
+  3.375px, 0.52) drawn behind the world, plus an optional **near** band (0.80,
+  5.25px, 0.62) drawn in front — off by default. Each speck has a slow constant
+  drift (gentle down + slight lateral), an independent `sin()` sway on x, and a
+  subtle alpha twinkle, all with random per-speck phase so nothing pulses in
+  unison. Tuned after review to a fine, airy dusting (white, 75% size, Medium
+  density).
+- **Fixed recycling pool, zero per-frame allocation**: every speck is allocated
+  once at load, sized to the busiest setting; specks that leave an edge wrap to
+  the opposite edge with fresh randomness. Density/enable only change how many
+  are *drawn*, never the pool. Soft "light" look via pre-rendered radial-gradient
+  stamps (`drawImage` in the hot loop — no gradients or allocation per frame).
+- **Runtime `Particles` API** (mirrors how `Sfx` owns its mute state), ready for
+  a future pause-menu control with no reload: `setEnabled`/`isEnabled`,
+  `setDensity`/`getDensity` over discrete **Low / Medium / High** steps
+  (0.4 / 0.7 / 1.0 of pool), `setNearEnabled`/`isNearEnabled`, and `setTheme`.
+  Ships **enabled at Medium** (~42 specks on screen; ~24 Low, ~60 High). A
+  clearly-marked **persist seam** is left for saving the choice later.
+- **Per-level look is data-driven** off the level `theme` (base palette + base
+  density), kept separate from the user's runtime settings: the player's
+  enable/density choice composes over the theme's authored base. Only `training`
+  renders today; its entry is tuned as the default. Wired into `render()` between
+  the sky fill and `level.draw()` (near band after the player). No changes to
+  camera, physics, or input.
+- **Airborne character shadows**: the ground shadow is now cast on the surface
+  *below* the character (platform, terrain, or floor) rather than glued to the
+  feet, and fades + shrinks with height — full at contact, gone once the feet are
+  ~60px up (`FADE_H`). So it disappears when airborne and grows back as the
+  character descends toward a landing. Added `Level.surfaceBelow(x, w, feetY)`
+  (a downward surface probe mirroring the fall-collision logic); the four
+  character draws gate their built-in feet shadow behind a `noShadow` option and
+  the player casts its own. The character-select menu still shows its normal
+  shadow. Applies to all four characters; no physics/movement changes.
 
 ### v0.6.5 — Yellow Ted Ted's sprint (2026-07-31)
 - Gave **Yellow Ted Ted** a character-exclusive **sprint** ability: **double-tap
@@ -246,6 +299,7 @@ style.css             full-window letterboxed canvas
   physics.js          tuning constants + AABB collision solver
   level.js            level data, platforms, gems, exit hut, rendering
   camera.js           follow camera (horizontal dead-zone + vertical pan)
+  particles.js        ambient "pollen" layer (parallax bands, recycling pool) + runtime API
   characters.js       the roster + procedural draw functions (Ted Teds + Battenberg)
   levels.js           level roster, config (id/name/theme/unlock state), procedural preview-draw functions
   player.js           movement, double/triple jump, animation & ear-physics state

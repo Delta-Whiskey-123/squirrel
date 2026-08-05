@@ -34,7 +34,31 @@
       "PowerShell(& \"C:\\\\Users\\\\domin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-domin--claude-squirrel\\\\3333d604-abf1-4c91-a554-f798748b2a4d\\\\scratchpad\\\\make_badges.ps1\")",
       "Bash(gh --version)",
       "Bash(gh auth *)",
-      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
+      "Bash(xargs wc -l)",
+      "Bash(cd js *)",
+      "Bash(py --version)",
+      "Bash(npx --version)",
+      "PowerShell($n = \\(Get-Command node -ErrorAction SilentlyContinue\\); if \\($n\\) { \"node: $\\($n.Source\\)\" } else { \"no node\" }; $p = \\(Get-Command python -ErrorAction SilentlyContinue\\); if \\($p\\) { \"python: $\\($p.Source\\)\" } else { \"no python\" }; $py = \\(Get-Command py -ErrorAction SilentlyContinue\\); if \\($py\\) { \"py: $\\($py.Source\\)\" } else { \"no py\" })",
+      "PowerShell(& python -c \"print\\('ok'\\)\" 2>&1)",
+      "Bash(rm -f _verify*.html && git status --short && echo \"--- remaining _verify files \\(should be none\\):\" && ls _verify*.html 2>/dev/null || echo \"none\")",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(gh release create v0.6.0 --title 'v0.6.0 — Level select & menu sounds' --notes ' *)",
+      "Bash(git check-ignore *)",
+      "Bash(command -v python)",
+      "Bash(command -v python3)",
+      "Bash(command -v py)",
+      "Bash(rm -f sky-preview.html particle-preview.html && echo \"deleted\" && ls sky-preview.html particle-preview.html 2>&1)",
+      "Bash(cp \"C:/Users/domin/AppData/Local/Temp/claude/C--Users-domin--claude-squirrel/efb92539-4368-465f-bcf8-3e83ccd6fa8c/scratchpad/hotchoc-previews.html\" \"C:/Users/domin/.claude/squirrel/_preview_hotchoc.html\" && echo copied)",
+      "Bash(rm \"C:/Users/domin/.claude/squirrel/_preview_hotchoc.html\" && echo removed)",
+      "Bash(cp \"C:/Users/domin/AppData/Local/Temp/claude/C--Users-domin--claude-squirrel/efb92539-4368-465f-bcf8-3e83ccd6fa8c/scratchpad/hotchoc-previews2.html\" \"C:/Users/domin/.claude/squirrel/_preview_hotchoc2.html\" && echo copied)",
+      "Bash(rm \"C:/Users/domin/.claude/squirrel/_preview_hotchoc2.html\" && echo removed)",
+      "Bash(cp \"C:/Users/domin/AppData/Local/Temp/claude/C--Users-domin--claude-squirrel/efb92539-4368-465f-bcf8-3e83ccd6fa8c/scratchpad/hotchoc-previews3.html\" \"C:/Users/domin/.claude/squirrel/_preview_hotchoc3.html\" && echo copied)",
+      "Bash(rm \"C:/Users/domin/.claude/squirrel/_preview_hotchoc3.html\" && echo removed)",
+      "Bash(cp \"C:/Users/domin/AppData/Local/Temp/claude/C--Users-domin--claude-squirrel/efb92539-4368-465f-bcf8-3e83ccd6fa8c/scratchpad/hotchoc-bg.html\" \"C:/Users/domin/.claude/squirrel/_preview_hotchoc_bg.html\" && echo copied)",
+      "Bash(rm -f \"C:/Users/domin/.claude/squirrel/_preview_hotchoc_bg.html\" && echo cleaned)",
+      "Bash(git --no-pager diff -- js/particles.js js/main.js js/player.js js/level.js js/levels.js index.html)"
     ]
   }
 }
