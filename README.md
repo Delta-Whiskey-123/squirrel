@@ -44,7 +44,7 @@ a full run. (To be removed before release.)
 
 ## Progress summary
 
-The engine, game feel, and core level are complete with four playable characters,
+The engine, game feel, and core level are complete with five playable characters,
 audio, a three-tier collectable gem system, and a full badge celebration on
 finishing the level. The core gameplay loop is closed end-to-end: pick a
 character, run the level, collect gems, exit via the hut, and earn the badge.
@@ -76,6 +76,11 @@ Distinct character abilities and more levels are next.
   when audio is off.
 - **Fourth character: Battenberg**, with a triple-jump ability (third jump
   reaches 2× the height of the first, with a spring "boing" sound).
+- **Fifth character: Hot Chocolate**, a limbless ceramic mug (no arms or legs) —
+  a red rim band, a domed milk-chocolate top, a cream swirl with evenly-spread
+  sprinkles, and a pink-and-red candy-striped straw inserted into the side of
+  the cream. Cuddly-toy face; hops as one blob via squash/stretch. No special
+  ability yet.
 - **Badge celebration screen** (`gameComplete` state): triggered when the
   player exits through the final level's door. Dims the world, fades in gentle
   confetti, plays the fanfare, shows a spoken-aloud headline, the earned badge
@@ -98,7 +103,7 @@ Distinct character abilities and more levels are next.
   level `theme`.
 - **Airborne character shadows**: the ground shadow is cast on the surface below
   the character and fades out when airborne, growing back on the descent toward a
-  landing (via `Level.surfaceBelow`); applies to all four characters.
+  landing (via `Level.surfaceBelow`); applies to all five characters.
 - **Menu sounds**: four friendly synthesised SFX wired across all menus — move
   (soft cursor nav blip), confirm (upward two-note lift when advancing),
   locked (low downward "nuh-uh" when trying a locked item), back (falling
@@ -111,9 +116,9 @@ Distinct character abilities and more levels are next.
 - Generous, forgiving physics; no way to get stuck in a menu.
 
 **Not yet built**
-- **Distinct character abilities** for Blue/Grey Ted Ted: they currently play
-  identically to Yellow (Battenberg has triple-jump; planned: unique traits or
-  power-ups for the rest of the roster).
+- **Distinct character abilities** for Blue/Grey Ted Ted and Hot Chocolate: they
+  currently play identically to Yellow (Battenberg has triple-jump; planned:
+  unique traits or power-ups for the rest of the roster).
 - **More levels** (Alpine and the four Coming Soon slots): unlock logic and
   per-level geometry/theming once they're authored. Save system hooks already
   in place for future unlock-state persistence.
@@ -168,7 +173,16 @@ Distinct character abilities and more levels are next.
   (a downward surface probe mirroring the fall-collision logic); the four
   character draws gate their built-in feet shadow behind a `noShadow` option and
   the player casts its own. The character-select menu still shows its normal
-  shadow. Applies to all four characters; no physics/movement changes.
+  shadow. Applies to all five characters; no physics/movement changes.
+- **Fifth character: Hot Chocolate** (`js/characters.js`, roster id `hotchoc`):
+  a limbless ceramic mug drawn from canvas primitives — a big looped handle on
+  the right, a red rim band, a raised **milk-chocolate dome** above the rim with
+  a soft gloss, a tall soft-serve cream swirl dotted with ~10 evenly-spread
+  sprinkles, and a balanced pink/red candy-striped straw inserted into the left
+  side of the cream. Cuddly-toy face (black shine eyes, smile, pink blush).
+  Having no arms or legs, it hops as one blob via squash/stretch rather than
+  swinging limbs (ignores the leg/ear draw params). **No special ability yet** —
+  deferred by design.
 
 ### v0.6.5 — Yellow Ted Ted's sprint (2026-07-31)
 - Gave **Yellow Ted Ted** a character-exclusive **sprint** ability: **double-tap
@@ -300,7 +314,7 @@ style.css             full-window letterboxed canvas
   level.js            level data, platforms, gems, exit hut, rendering
   camera.js           follow camera (horizontal dead-zone + vertical pan)
   particles.js        ambient "pollen" layer (parallax bands, recycling pool) + runtime API
-  characters.js       the roster + procedural draw functions (Ted Teds + Battenberg)
+  characters.js       the roster + procedural draw functions (Ted Teds + Battenberg + Hot Chocolate)
   levels.js           level roster, config (id/name/theme/unlock state), procedural preview-draw functions
   player.js           movement, double/triple jump, animation & ear-physics state
 /data                 (reserved for data-driven levels)
