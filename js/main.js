@@ -325,6 +325,13 @@
     ctx.fillStyle = '#96c8f2';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
+    // Parallax landscape backdrop (scenery.js): only behind the live world, so
+    // menus and level-select thumbnails are untouched. Sits between the flat
+    // sky and the ambient pollen.
+    if (screen === 'playing' || screen === 'pausemenu' || screen === 'gameComplete') {
+      Scenery.drawBack(ctx, camera.x, camera.y, VIEW_W, VIEW_H);
+    }
+
     // Ambient pollen: far + mid bands sit in the air behind the world.
     Particles.drawBack(ctx);
 

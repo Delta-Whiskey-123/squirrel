@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.7.0** (2026-08-04)
+**Current version: v0.8.0** (2026-08-11)
 
 ---
 
@@ -109,6 +109,11 @@ Distinct character abilities and more levels are next.
   locked (low downward "nuh-uh" when trying a locked item), back (falling
   counter to confirm). All routed through existing master gain, so M-mute
   covers everything. Reused existing WebAudio synthesizer; no new dependencies.
+- **Parallax scenery backdrop** (`js/scenery.js`): a procedural, flat
+  Hey-Duggee-style spring-green landscape behind the world — clouds, distinct
+  pastel snow-capped mountains, two-tone rolling hills, and decorative trees,
+  each on its own parallax depth layer. Pure canvas (no assets, still
+  `file://`-safe); gated to gameplay screens so menus/thumbnails are unaffected.
 
 **Design rules honoured** (from the spec)
 - No failure, no lives, no score, no timer — falling gently respawns you.
@@ -132,6 +137,33 @@ Distinct character abilities and more levels are next.
 ---
 
 ## Version history
+
+### v0.8.0 — Parallax scenery backdrop (2026-08-11)
+- Added a **procedural parallax landscape** behind the world (`js/scenery.js`, a
+  `Scenery` module mirroring `Particles`): a flat, Hey-Duggee-style **spring-green**
+  scene drawn entirely from canvas primitives — no image files, so the game still
+  runs from `file://`. Drawn in `render()` between the sky fill and the ambient
+  pollen, and **gated to gameplay screens** (`playing` / `pausemenu` /
+  `gameComplete`) so menus and level-select thumbnails are untouched.
+- **Five depth layers**, each sliding opposite the camera at its own **parallax
+  factor** so distance reads from the rate difference: **clouds** (0.06, with a
+  slow drift, frozen under `prefers-reduced-motion`), **mountains** (0.15),
+  **mid hills** (0.35), **near hills** (0.60), plus decorative **trees** riding
+  the near layer. A gentle vertical parallax anchors each layer near the horizon
+  so a high jump pans them slightly rather than sliding them with the ground.
+- **Mountains**: distinct separated pastel peaks (purple / periwinkle /
+  dusty-pink centrepiece / mauve / blue-purple), snow caps on the tall ones only,
+  and area-uniform slope speckling. Each peak's edges **continue straight down**
+  to a fixed skirt line (same slope — no flat/square base) so a high jump, where
+  the green pans off faster than the peaks, never opens a strip of sky beneath
+  them.
+- **Two-tone rolling green** (mid `#9cc78a` behind, near `#6fb85a` in front) that
+  overlaps the mountain feet, and fluffy **white clouds** with a soft pale-blue
+  underside shadow that hugs the cloud's own outline.
+- **Seamless & deterministic**: hill lines are globally periodic and the mountain
+  and cloud units tile with the seam falling in a valley; all peaks, speckles and
+  cloud shapes are generated once with a fixed seed, so nothing shimmers frame to
+  frame. No changes to camera, physics, input, or collision.
 
 ### v0.7.0 — Ambient particles & airborne shadows (2026-08-04)
 - Added an **ambient "pollen" particle layer** (`js/particles.js`): a gentle,
@@ -314,6 +346,7 @@ style.css             full-window letterboxed canvas
   level.js            level data, platforms, gems, exit hut, rendering
   camera.js           follow camera (horizontal dead-zone + vertical pan)
   particles.js        ambient "pollen" layer (parallax bands, recycling pool) + runtime API
+  scenery.js          parallax landscape backdrop (clouds/mountains/hills/trees) — procedural, gameplay-only
   characters.js       the roster + procedural draw functions (Ted Teds + Battenberg + Hot Chocolate)
   levels.js           level roster, config (id/name/theme/unlock state), procedural preview-draw functions
   player.js           movement, double/triple jump, animation & ear-physics state
