@@ -17,6 +17,7 @@ const TILE = Physics.TILE; // 48
 
 const VIEW_H = 540;
 const FLOOR_TOP_Y = Math.round(VIEW_H - 0.40 * TILE); // 521 — base ground surface
+const EDGE_LINE = 2.2;                                 // dark outline weight on ground edges
 const X_UNIT = 78;                                    // world px per grid X-unit
 const RIGHT_X = 101;                                  // confine the playable area to X101
 
@@ -32,6 +33,16 @@ const PROFILE = [
 function profileTopAt(x) {
   for (let i = PROFILE.length - 1; i >= 0; i--) if (x >= PROFILE[i][0]) return PROFILE[i][1];
   return FLOOR_TOP_Y;
+}
+
+// Deterministic 0..1 hash of two integer cell indices. Drives the soil pebble
+// scatter so each fleck keeps a fixed world position (identical every frame,
+// regardless of camera), while still looking randomly placed.
+function pebHash(i, j) {
+  let n = (i * 374761393 + j * 668265263) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  n ^= n >>> 16;
+  return (n >>> 0) / 4294967296;
 }
 
 // A simple coin, coloured by gem tier. Shared by the in-world gems and the HUD.
@@ -179,10 +190,9 @@ class Level {
   // --- Rendering ---
   draw(ctx, camX, camY, viewW, viewH) {
     this._drawFloor(ctx, camX, camY, viewW, viewH);
-    for (const r of this.solids) {
-      if (r.kind === 'terrain') this._drawTerrain(ctx, r, camX, camY);
-      else this._drawPlatform(ctx, r, camX, camY);
-    }
+    for (const r of this.solids) if (r.kind === 'terrain') this._drawTerrain(ctx, r, camX, camY);
+    this._drawPebbles(ctx, camX, camY, viewW, viewH);
+    for (const r of this.solids) if (r.kind !== 'terrain') this._drawPlatform(ctx, r, camX, camY);
     for (const s of this.springs) this._drawSpring(ctx, s.x + s.w / 2, s.y - camY, camX);
     this._drawGems(ctx, camX, camY);
     this._drawExit(ctx, camX, camY);
@@ -283,17 +293,83 @@ class Level {
     ctx.fillStyle = '#5bbf4a';
     ctx.fillRect(0, top, viewW, grassH);
     ctx.fillStyle = '#2f2233';
-    ctx.fillRect(0, top, viewW, 3);
+    ctx.fillRect(0, top, viewW, EDGE_LINE);
   }
 
   _drawTerrain(ctx, r, camX, camY) {
-    const x = r.x - camX, y = r.y - camY;
+    // Snap the segment's screen edges to whole pixels so neighbouring segments
+    // tile exactly. Without this, a fractional camera offset leaves a ~1px
+    // sub-pixel seam between adjacent same-height rects — a hairline of the
+    // background bleeding through the grass and soil.
+    const rx = Math.round(r.x - camX);
+    const rw = Math.round(r.x + r.w - camX) - rx;
+    const y = Math.round(r.y - camY);
     ctx.fillStyle = '#8a5a2b';
-    ctx.fillRect(x, y, r.w, r.h + 40);          // down past the base so no seam shows
+    ctx.fillRect(rx, y, rw, r.h + 40);          // down past the base so no seam shows
     ctx.fillStyle = '#5bbf4a';
-    ctx.fillRect(x, y, r.w, Math.round(TILE * 0.28));
+    ctx.fillRect(rx, y, rw, Math.round(TILE * 0.28));
     ctx.fillStyle = '#2f2233';
-    ctx.fillRect(x, y, r.w, 3);
+    ctx.fillRect(rx, y, rw, EDGE_LINE);          // horizontal top edge
+
+    // Vertical edge lines on the exposed step faces. A face is only exposed
+    // against a lower neighbour, so the higher segment draws it — adjacent or
+    // co-planar segments never double-line. nl/nr are the neighbouring surface
+    // tops just past this segment's left/right edge.
+    const nl = profileTopAt(r.x - 1), nr = profileTopAt(r.x + r.w);
+    if (nl > r.y) ctx.fillRect(rx - EDGE_LINE / 2, y, EDGE_LINE, Math.round(nl - camY) - y);
+    if (nr > r.y) ctx.fillRect(rx + rw - EDGE_LINE / 2, y, EDGE_LINE, Math.round(nr - camY) - y);
+  }
+
+  // Sparse stone texture through the exposed soil (below the grass line). Two
+  // layers — fine earthy grit and small outlined pebbles — placed on a jittered
+  // world-space grid so the density is even per unit of soil and every fleck
+  // keeps a fixed world position. Called between the terrain and platform passes,
+  // so it reads as part of the ground and the player/shadow sit in front.
+  _drawPebbles(ctx, camX, camY, viewW, viewH) {
+    const grassH = Math.round(TILE * 0.28);
+    const worldL = camX, worldR = camX + viewW, worldTop = camY, worldBot = camY + viewH;
+    const SPECK = ['#7a4f24', '#9c6a38', '#6b4420', '#a0703c'];
+    const PEB = [['#9aa0a6', '#7b8188'], ['#a06a3a', '#814f28']];
+    const inSoil = (wx, wy) => {
+      if (wy <= profileTopAt(wx) + grassH + 1 || wy >= worldBot) return false;
+      // Keep clear of the vertical step-edge outline: within a few px of a height
+      // change, skip the exposed-face band (down to the lower surface) so no fleck
+      // sits on the black line. Co-planar boundaries (equal tops) aren't affected.
+      const sL = profileTopAt(wx - 6), sR = profileTopAt(wx + 6);
+      if (sL !== sR && wy <= Math.max(sL, sR)) return false;
+      return true;
+    };
+
+    // Layer 1 — earthy grit: fine specks, no outline.
+    const cs = 36;
+    for (let gx = Math.floor(worldL / cs); gx <= Math.ceil(worldR / cs); gx++) {
+      for (let gy = Math.floor(worldTop / cs); gy <= Math.ceil(worldBot / cs); gy++) {
+        const wx = gx * cs + pebHash(gx, gy) * cs, wy = gy * cs + pebHash(gx * 3 + 1, gy * 7 + 2) * cs;
+        if (!inSoil(wx, wy)) continue;
+        const c = pebHash(gx + 11, gy + 5), rad = 1.1 + c * 1.4;
+        ctx.beginPath(); ctx.ellipse(wx - camX, wy - camY, rad, rad, 0, 0, 7);
+        ctx.fillStyle = SPECK[(c * 4) | 0]; ctx.fill();
+      }
+    }
+
+    // Layer 2 — small outlined pebbles: grey/brown, two-tone, tiny glint.
+    const cp = 92;
+    for (let gx = Math.floor(worldL / cp); gx <= Math.ceil(worldR / cp); gx++) {
+      for (let gy = Math.floor(worldTop / cp); gy <= Math.ceil(worldBot / cp); gy++) {
+        const wx = gx * cp + pebHash(gx + 100, gy + 50) * cp, wy = gy * cp + pebHash(gx * 5 + 3, gy * 3 + 9) * cp;
+        if (!inSoil(wx, wy)) continue;
+        const c = pebHash(gx + 61, gy + 29), rad = 2 + c * 1.4, pr = PEB[(c * 2) | 0];
+        const x = wx - camX, y = wy - camY, rx = rad, ry = rad * 0.8;
+        ctx.save();
+        ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7);
+        ctx.fillStyle = pr[0]; ctx.fill();
+        ctx.save(); ctx.clip(); ctx.fillStyle = pr[1]; ctx.fillRect(x - rx - 2, y + ry * 0.12, rx * 2 + 4, ry * 2); ctx.restore();
+        ctx.lineWidth = 1; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(x - rx * 0.3, y - ry * 0.36, rx * 0.28, ry * 0.22, 0, 0, 7);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fill();
+        ctx.restore();
+      }
+    }
   }
 
   _drawPlatform(ctx, r, camX, camY) {

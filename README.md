@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.8.0** (2026-08-11)
+**Current version: v0.8.2** (2026-08-13)
 
 ---
 
@@ -114,6 +114,10 @@ Distinct character abilities and more levels are next.
   pastel snow-capped mountains, two-tone rolling hills, and decorative trees,
   each on its own parallax depth layer. Pure canvas (no assets, still
   `file://`-safe); gated to gameplay screens so menus/thumbnails are unaffected.
+- **Terrain detailing**: outlined vertical step faces, refined ground/scenery
+  line weights for depth, a sub-pixel seam fix, and a sparse procedural **soil
+  pebble** texture (earthy grit + small stones) scattered evenly through the
+  exposed dirt — all pure canvas and `file://`-safe.
 
 **Design rules honoured** (from the spec)
 - No failure, no lives, no score, no timer — falling gently respawns you.
@@ -137,6 +141,32 @@ Distinct character abilities and more levels are next.
 ---
 
 ## Version history
+
+### v0.8.2 — Terrain detailing: edge outlines & soil pebbles (2026-08-13)
+- **Vertical terrain edge outlines**: every exposed step face — both rises and
+  drops — now carries a dark outline down its side, matching the outline already
+  on the grass tops, so the stepped terrain reads as solid, chunky ground. Drawn
+  only by the higher segment at each height change, so adjacent/co-planar
+  segments never double-line.
+- **Refined line weights for depth**: the terrain top edges and base floor line
+  were thinned from 3px to a shared `EDGE_LINE` of **2.2px**, and the scenery
+  hill bands lightened (near hill 2.6→**1.8px**, mid hill 2.0→**1.7px**), so the
+  playable foreground reads as the boldest, crispest layer and each scenery band
+  recedes behind the one in front — more contrast between the play area and the
+  backdrop.
+- **Sub-pixel seam fix**: adjacent same-height terrain segments used to show a
+  faint 1px hairline (the background bleeding through) at fractional camera
+  offsets, because each rectangle antialiased its shared edge independently.
+  Terrain segment screen edges are now **snapped to whole pixels** so neighbours
+  tile exactly — the hairline is gone, with no change to camera smoothness.
+- **Soil pebble texture** (`Level._drawPebbles` + `pebHash`): a sparse two-layer
+  stone texture through the exposed soil — fine earthy **grit** plus small
+  outlined **grey/brown pebbles** with two-tone shading and a tiny glint. Placed
+  on a jittered **world-space grid** so density is even per unit of soil and every
+  fleck keeps a fixed world position (stable every frame, no shimmer). Confined
+  to the soil band (never on grass), kept clear of the vertical step-edge lines,
+  and drawn between the terrain and platform passes so the player and its shadow
+  sit in front. Pure canvas, still `file://`-safe. No physics/collision changes.
 
 ### v0.8.0 — Parallax scenery backdrop (2026-08-11)
 - Added a **procedural parallax landscape** behind the world (`js/scenery.js`, a

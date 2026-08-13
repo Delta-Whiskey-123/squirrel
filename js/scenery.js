@@ -42,8 +42,8 @@ const Scenery = (function () {
   // overlaps it at every jump height (the green pans down faster than the
   // mountains), so no sky ever opens between the peaks and the hills.
   const SKIRT_BOTTOM = 480;
-  const MID_CFG  = { unit: 520, baseY: 348, amp: 25.3, p1: 0.6, p2: 2.1, f: F_MID,  fill: MID_FILL,  out: MID_OUT,  lw: 2.0 };
-  const NEAR_CFG = { unit: 470, baseY: 420, amp: 26, p1: 1.9, p2: 0.4, f: F_NEAR, fill: NEAR_FILL, out: NEAR_OUT, lw: 2.6 };
+  const MID_CFG  = { unit: 520, baseY: 348, amp: 25.3, p1: 0.6, p2: 2.1, f: F_MID,  fill: MID_FILL,  out: MID_OUT,  lw: 1.7 };
+  const NEAR_CFG = { unit: 470, baseY: 420, amp: 26, p1: 1.9, p2: 0.4, f: F_NEAR, fill: NEAR_FILL, out: NEAR_OUT, lw: 1.8 };
 
   const reduced = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || false;
 
