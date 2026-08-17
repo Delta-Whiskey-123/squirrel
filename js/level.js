@@ -19,16 +19,54 @@ const VIEW_H = 540;
 const FLOOR_TOP_Y = Math.round(VIEW_H - 0.40 * TILE); // 521 — base ground surface
 const EDGE_LINE = 2.2;                                 // dark outline weight on ground edges
 const X_UNIT = 78;                                    // world px per grid X-unit
-const RIGHT_X = 101;                                  // confine the playable area to X101
+const RIGHT_X = 101;                                  // Training: playable area confined to X101
+const EXPERT_RIGHT_X = 151;                           // Woodland Expert: 50% longer (X151, 11778px)
 
 // Terrain profile: [worldX, topY] step points. topY < FLOOR_TOP_Y is a raised
 // hill; equal to it is flat valley (the base band shows through).
-const PROFILE = [
+const TRAINING_PROFILE = [
   [0, 521], [900, 521], [1150, 473], [1550, 473], [1850, 521], [2500, 521],
   [2800, 473], [3100, 425], [3500, 425], [3800, 473], [4100, 521], [4700, 521],
   [5000, 473], [5300, 425], [5600, 377], [5900, 377], [6200, 425], [6500, 473],
   [6800, 521], [7488, 521], [7878, 521],
 ];
+
+// Woodland Expert rolling hills across the longer world; flat by the exit.
+const EXPERT_PROFILE = [
+  [0, 521], [590, 521], [1180, 473], [1770, 473], [2360, 521], [2950, 425],
+  [3540, 425], [4130, 473], [4720, 521], [5310, 521], [5900, 473], [6490, 377],
+  [7080, 425], [7670, 521], [8260, 521], [8850, 473], [9440, 473], [10030, 521],
+  [10600, 521], [11778, 521],
+];
+
+// Woodland Expert platforms + coins, straight from the approved blueprint.
+//   [x, surfaceY, w, kind, coin]   kind: 'plat' | 'launch'   coin: A gold / B silver / C bronze
+// Three zones ramp left->right (Warm-up X0-50, Skilled X50-100, Expert X100-151);
+// heights climb toward the Expert end, every platform carries one coin, and the
+// tiers total 10 gold / 15 silver / 25 bronze = 50. Every coin is reachable with
+// the base double-jump; springs and character abilities only make it quicker.
+const EXPERT_PLATS = [
+  // Zone 1 — Warm-up
+  [300, 461, 90, 'plat', 'C'], [520, 400, 110, 'plat', 'C'], [680, 340, 80, 'plat', 'B'], [820, 400, 100, 'plat', 'C'],
+  [1120, 340, 92, 'plat', 'C'], [1360, 280, 92, 'plat', 'B'], [1600, 220, 92, 'plat', 'C'],
+  [2000, 340, 100, 'plat', 'C'], [2280, 280, 92, 'plat', 'C'], [2560, 220, 92, 'plat', 'B'],
+  [2820, 190, 120, 'launch', 'C'], [3120, 200, 92, 'plat', 'C'], [3380, 120, 92, 'plat', 'C'], [3560, -10, 100, 'plat', 'A'],
+  // Zone 2 — Skilled
+  [3820, 120, 92, 'plat', 'C'], [4080, 200, 92, 'plat', 'B'], [4340, 100, 80, 'plat', 'C'], [4560, -20, 80, 'plat', 'B'],
+  [4780, -140, 80, 'plat', 'C'], [5000, -260, 90, 'plat', 'A'], [5240, -80, 92, 'plat', 'C'], [5400, 100, 80, 'plat', 'C'],
+  [5620, 40, 100, 'plat', 'B'], [5860, -60, 80, 'plat', 'C'], [6100, -200, 120, 'launch', 'A'], [6380, 20, 92, 'plat', 'C'],
+  [6620, -40, 80, 'plat', 'B'], [6860, -120, 80, 'plat', 'C'], [7100, -200, 80, 'plat', 'B'], [7320, -300, 90, 'plat', 'A'], [7560, -60, 100, 'plat', 'C'],
+  // Zone 3 — Expert
+  [7860, 60, 90, 'plat', 'C'], [8180, -40, 70, 'plat', 'B'], [8360, -160, 70, 'plat', 'C'], [8540, -280, 70, 'plat', 'B'],
+  [8720, -400, 70, 'plat', 'A'], [8940, -160, 80, 'plat', 'B'], [9160, -300, 110, 'launch', 'A'], [9480, -100, 80, 'plat', 'B'],
+  [9840, -200, 70, 'plat', 'C'], [10020, -320, 66, 'plat', 'B'], [10200, -440, 66, 'plat', 'A'], [10230, -560, 60, 'plat', 'A'],
+  [10380, -320, 66, 'plat', 'C'], [10480, -100, 80, 'plat', 'B'], [10600, -200, 80, 'plat', 'A'], [10820, -360, 70, 'plat', 'A'],
+  [11040, -220, 80, 'plat', 'B'], [11260, 40, 100, 'plat', 'C'], [11340, 200, 110, 'plat', 'C'],
+];
+
+// Active terrain profile, swapped by load() so profileTopAt / terrain / pebbles
+// all follow the currently-loaded level.
+let PROFILE = TRAINING_PROFILE;
 
 function profileTopAt(x) {
   for (let i = PROFILE.length - 1; i >= 0; i--) if (x >= PROFILE[i][0]) return PROFILE[i][1];
@@ -57,33 +95,20 @@ function drawCoin(ctx, x, y, r, tier) {
 
 class Level {
   constructor() {
-    this.floorTopY = FLOOR_TOP_Y;
     this.leftWall = 0;
-    this.rightWall = RIGHT_X * X_UNIT;   // 7878
-    this.pixelW = this.rightWall;
     this.pixelH = 1400;                  // only used for the fall-out safety check
-    this.spawn = { x: 120, y: this.floorTopY - TILE };
-
+    this.exitOpenDist = 180;
+    this.doorOpen = 0;
     this.solids = [];
     this.springs = [];
-    this._build();
-
-    // Exit hut: sits just before the X101 right wall. Walking into the doorway
-    // ends the level (see updateExit).
-    this.exitDoorX = 7656;
-    this.doorOpen = 0;
-    this.exitOpenDist = 180;
-
-    // Collectable gems, three tiers: A (gold, easy low path), B (silver, mid
-    // platforms), C (bronze, high route). They float just above their surface.
     this.gems = [];
-    this._buildGems();
+    this.load(1);                        // build a default world so the player has a valid spawn/bounds
   }
 
   _buildGems() {
     const gem = (x, surfaceY, tier) => this.gems.push({ x, y: surfaceY - 26, tier, taken: false });
     // A — gold, along the low/ground path.
-    [[350, 521], [750, 521], [2350, 521], [4400, 521], [6700, 473], [7450, 521], [1426, 187], [5526, 139]]
+    [[350, 521], [750, 521], [2350, 521], [4400, 521], [6700, 473], [3610, -545], [1426, 187], [5526, 139]]
       .forEach(([x, y]) => gem(x, y, 'A'));
     // B — silver, on the mid staircase platforms.
     [[1206, 299], [1316, 243], [3306, 251], [3526, 139], [3746, 271], [5306, 251], [5416, 195], [5746, 271]]
@@ -93,11 +118,61 @@ class Level {
       .forEach(([x, y]) => gem(x, y, 'C'));
   }
 
-  // Load the geometry for a level id. Today the Woodland Path is the only level,
-  // so every id builds the same world — the id is just stored. When more levels
-  // are authored, branch here (rebuild solids/gems/exit for `this.id`). A missing
-  // or falsy id falls back to level 1 so a stray load never errors.
-  load(id) { this.id = id || 1; }
+  // Load the geometry for a level id, rebuilding solids/springs/gems/exit for it.
+  //   id 1 = Training (Woodland Path);  id 2 = Woodland Expert (same world and
+  //   scenery, 50% longer and much harder). An unknown id falls back to Training
+  //   so a stray load never errors. Swaps the active terrain PROFILE too, so
+  //   profileTopAt / terrain / pebble drawing all follow the loaded level.
+  load(id) {
+    this.id = id || 1;
+    this.floorTopY = FLOOR_TOP_Y;
+    this.leftWall = 0;
+    this.solids = [];
+    this.springs = [];
+    this.gems = [];
+    this.doorOpen = 0;
+    if (this.id === 2) {
+      PROFILE = EXPERT_PROFILE;
+      this.rightWall = EXPERT_RIGHT_X * X_UNIT;   // 11778
+      this.pixelW = this.rightWall;
+      this.spawn = { x: 120, y: this.floorTopY - TILE };
+      this.exitDoorX = 11556;                     // just before the X151 right wall
+      this._buildExpert();
+      this._buildExpertGems();
+    } else {
+      PROFILE = TRAINING_PROFILE;
+      this.rightWall = RIGHT_X * X_UNIT;          // 7878
+      this.pixelW = this.rightWall;
+      this.spawn = { x: 120, y: this.floorTopY - TILE };
+      this.exitDoorX = 7656;
+      this._build();
+      this._buildGems();
+    }
+  }
+
+  // --- Woodland Expert (id 2) geometry, from EXPERT_PROFILE / EXPERT_PLATS. ---
+  _buildExpert() {
+    for (let i = 0; i < PROFILE.length - 1; i++) {
+      const [x, top] = PROFILE[i];
+      const nx = PROFILE[i + 1][0];
+      if (top < FLOOR_TOP_Y) this.solids.push({ x, y: top, w: nx - x, h: FLOOR_TOP_Y - top, kind: 'terrain' });
+    }
+    for (const [x, y, w, kind] of EXPERT_PLATS) {
+      this.solids.push({ x, y, w, h: 18, kind, oneway: true });
+    }
+    // Optional spring boosts (the level is fully clearable by double-jump alone):
+    // two on the ground, one vertical pad atop the first Expert-zone platform.
+    const B = Physics.SPRING_VELOCITY;
+    this.springs.push({ x: 2743, y: profileTopAt(2760), w: 34, bounce: B });
+    this.springs.push({ x: 6023, y: profileTopAt(6040), w: 34, bounce: B });
+    this.springs.push({ x: 7888, y: 60, w: 34, bounce: B, vertical: true });
+  }
+
+  _buildExpertGems() {
+    for (const [x, y, w, , coin] of EXPERT_PLATS) {
+      this.gems.push({ x: x + w / 2, y: y - 26, tier: coin, taken: false });
+    }
+  }
 
   resetGems() { for (const g of this.gems) g.taken = false; }
 
@@ -305,7 +380,7 @@ class Level {
     const rw = Math.round(r.x + r.w - camX) - rx;
     const y = Math.round(r.y - camY);
     ctx.fillStyle = '#8a5a2b';
-    ctx.fillRect(rx, y, rw, r.h + 40);          // down past the base so no seam shows
+    ctx.fillRect(rx, y, rw, r.h + 80);          // down past the base so no seam shows
     ctx.fillStyle = '#5bbf4a';
     ctx.fillRect(rx, y, rw, Math.round(TILE * 0.28));
     ctx.fillStyle = '#2f2233';

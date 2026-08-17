@@ -36,16 +36,22 @@ function drawTrainingPreview(ctx, x, y, w, h) {
   drawCoin(ctx, x + w * 0.68, gy - 18, 8, 'A');                   // gold coin (shared helper)
 }
 
-// Alpine — snowy peaks over a pale ground.
-function drawAlpinePreview(ctx, x, y, w, h) {
-  ctx.fillStyle = '#bfe3ff'; ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = '#9aa6bf';                                      // two mountains
-  ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w * 0.28, y + h * 0.28); ctx.lineTo(x + w * 0.52, y + h); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(x + w * 0.42, y + h); ctx.lineTo(x + w * 0.70, y + h * 0.40); ctx.lineTo(x + w, y + h); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#fff7ec';                                      // snow caps
-  ctx.beginPath(); ctx.moveTo(x + w * 0.28, y + h * 0.28); ctx.lineTo(x + w * 0.35, y + h * 0.44); ctx.lineTo(x + w * 0.21, y + h * 0.44); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(x + w * 0.70, y + h * 0.40); ctx.lineTo(x + w * 0.78, y + h * 0.56); ctx.lineTo(x + w * 0.62, y + h * 0.56); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#eaf3fb'; ctx.fillRect(x, y + h * 0.82, w, h * 0.18); // snowy ground
+// Woodland Expert — the same Woodland world as Training, but a tall staircase
+// of platforms climbing to a high gold coin (its signature: reach for the top).
+function drawExpertPreview(ctx, x, y, w, h) {
+  ctx.fillStyle = '#96c8f2'; ctx.fillRect(x, y, w, h);            // sky (matches gameplay)
+  const gy = y + h * 0.74;
+  ctx.fillStyle = '#8a5a2b'; ctx.fillRect(x, gy, w, h - (gy - y)); // dirt
+  ctx.fillStyle = '#5bbf4a'; ctx.fillRect(x, gy, w, Math.max(5, h * 0.09)); // grass
+  const plat = (px, py, pw) => {                                  // a floating platform, brown with a grass cap
+    ctx.fillStyle = '#8a5a2b'; ctx.fillRect(px, py, pw, 5);
+    ctx.fillStyle = '#5bbf4a'; ctx.fillRect(px, py, pw, 2.5);
+  };
+  const pw = w * 0.17;
+  [[0.06, 0.60], [0.30, 0.46], [0.54, 0.32], [0.76, 0.18]].forEach(([fx, fy]) => plat(x + w * fx, y + h * fy, pw));
+  drawCoin(ctx, x + w * 0.145, y + h * 0.60 - 9, 6, 'C');        // bronze low
+  drawCoin(ctx, x + w * 0.385, y + h * 0.46 - 9, 6, 'B');        // silver mid
+  drawCoin(ctx, x + w * 0.845, y + h * 0.18 - 9, 7, 'A');        // gold high (the challenge)
 }
 
 // Placeholder — a neutral panel with a big question mark, for the empty slots.
@@ -59,8 +65,8 @@ function drawComingSoonPreview(ctx, x, y, w, h) {
 
 // The roster: six slots. Only Training is unlocked today.
 const LEVELS = [
-  { id: 1, displayName: 'Training', theme: 'training', unlocked: true,  blurb: 'Woodland Path', preview: drawTrainingPreview },
-  { id: 2, displayName: 'Alpine',   theme: 'alpine',   unlocked: false, blurb: 'Coming soon',   preview: drawAlpinePreview },
+  { id: 1, displayName: 'Training',        theme: 'training', unlocked: true, blurb: 'Woodland Path',        preview: drawTrainingPreview },
+  { id: 2, displayName: 'Woodland Expert', theme: 'training', unlocked: true, blurb: 'The Long Climb · 50 coins', preview: drawExpertPreview },
   { id: 3, displayName: 'Level 3',  theme: 'tba',      unlocked: false, blurb: 'Coming soon',   preview: drawComingSoonPreview },
   { id: 4, displayName: 'Level 4',  theme: 'tba',      unlocked: false, blurb: 'Coming soon',   preview: drawComingSoonPreview },
   { id: 5, displayName: 'Level 5',  theme: 'tba',      unlocked: false, blurb: 'Coming soon',   preview: drawComingSoonPreview },
