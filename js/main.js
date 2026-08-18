@@ -9,6 +9,7 @@
 (function () {
   const VIEW_W = 960;
   const VIEW_H = 540;
+  const GROUND_LIFT = 16;       // reframe: lift the play area to reveal more soil at the bottom
   const STEP = 1 / 60;          // fixed physics step, seconds
   const MAX_FRAME = 0.25;       // clamp huge gaps (e.g. tab was backgrounded)
 
@@ -304,6 +305,7 @@
       acc += dt;
       while (acc >= STEP) {
         Input.update(STEP);
+        level.updateMovers(STEP, player);   // advance moving platforms/hazards + carry the rider
         player.update(STEP);
         camera.update(level, player, STEP);
         collectGems();
@@ -335,8 +337,8 @@
     // Ambient pollen: far + mid bands sit in the air behind the world.
     Particles.drawBack(ctx);
 
-    level.draw(ctx, camera.x, camera.y, VIEW_W, VIEW_H);
-    player.draw(ctx, camera.x, camera.y);
+    level.draw(ctx, camera.x, camera.y + GROUND_LIFT, VIEW_W, VIEW_H);
+    player.draw(ctx, camera.x, camera.y + GROUND_LIFT);
 
     // Optional near band reads as "in front" (off by default).
     Particles.drawFront(ctx);

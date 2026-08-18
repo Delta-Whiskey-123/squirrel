@@ -216,7 +216,13 @@ class Player {
         if (!wasOnGround) { this.landTimer = 0.12; Sfx.land(); } // squash + thud on touchdown
         this.vy = 0;
         this.airJumpsLeft = this.maxAirJumps; // landing refills the mid-air jumps
-        this._rememberSafeSpot();
+        // Landing on solid ground is a safe respawn point — but not a moving
+        // platform (it drifts out from under a later respawn) and not while
+        // overlapping a hazard (the full-width floor still exists beneath a water
+        // pool, so without this the checkpoint would crawl straight through it).
+        const onMover = this.level.standingOnMover && this.level.standingOnMover(this);
+        const inHazard = this.level.hazardAt && this.level.hazardAt(this);
+        if (!onMover && !inHazard) this._rememberSafeSpot();
       }
     }
     if (hitY.hitTop) this.vy = 0;
@@ -243,6 +249,13 @@ class Player {
     // --- Fell out of the world? Begin a gentle respawn. ---
     if (this.y > this.level.pixelH + Physics.TILE) {
       this.respawnTimer = 0.5; // half a second, per the design rules
+      this.vx = this.vy = 0;
+    }
+
+    // --- Touched a hazard (water, spikes, patrolling saw)? Same gentle respawn.
+    // No-op on levels with no hazards. ---
+    if (this.respawnTimer <= 0 && this.level.hazardAt && this.level.hazardAt(this)) {
+      this.respawnTimer = 0.5;
       this.vx = this.vy = 0;
     }
   }

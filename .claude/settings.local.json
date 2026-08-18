@@ -58,7 +58,16 @@
       "Bash(rm \"C:/Users/domin/.claude/squirrel/_preview_hotchoc3.html\" && echo removed)",
       "Bash(cp \"C:/Users/domin/AppData/Local/Temp/claude/C--Users-domin--claude-squirrel/efb92539-4368-465f-bcf8-3e83ccd6fa8c/scratchpad/hotchoc-bg.html\" \"C:/Users/domin/.claude/squirrel/_preview_hotchoc_bg.html\" && echo copied)",
       "Bash(rm -f \"C:/Users/domin/.claude/squirrel/_preview_hotchoc_bg.html\" && echo cleaned)",
-      "Bash(git --no-pager diff -- js/particles.js js/main.js js/player.js js/level.js js/levels.js index.html)"
+      "Bash(git --no-pager diff -- js/particles.js js/main.js js/player.js js/level.js js/levels.js index.html)",
+      "Bash(git --no-pager log -1 --format='%s')",
+      "Bash(git --no-pager diff --cached --stat)",
+      "Bash(git commit -m 'Document Hot Chocolate character in v0.7.0 README *)",
+      "Bash(git --no-pager log --oneline origin/main..HEAD)",
+      "Bash(python -c \"import PIL, PIL.Image; print\\('PIL', PIL.__version__\\)\")",
+      "Bash(magick --version)",
+      "PowerShell(& 'C:\\\\Users\\\\domin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-domin--claude-squirrel\\\\31cab933-a9de-4643-9990-75de3b5dc118\\\\scratchpad\\\\scenery_preview.ps1')",
+      "Bash(rm -f \"C:/Users/domin/.claude/squirrel/_scenery_test.html\" && echo \"harness removed\" && ls \"C:/Users/domin/.claude/squirrel/\"*.html)",
+      "mcp__visualize__read_me"
     ]
   }
 }
