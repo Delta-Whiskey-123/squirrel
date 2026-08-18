@@ -90,10 +90,11 @@ levels are next.
   buttons fade in after a beat: **Home** (returns to level select) and **Start
   Over** (blue circular restart arrow, returns to character select).
 - **Level select screen**: entry point before character select. 3×2 grid showing
-  six level slots: Training (Woodland Path, unlocked), Alpine (locked "Coming
-  Soon"), and four placeholder slots (locked). Procedural vector preview art
-  for each card. Cursor remembers last chosen level on re-entry. Grid navigation
-  via arrow keys; Enter/Space to select, Backspace to go back (dead-end for now).
+  six level slots: Training (Woodland Path) and Woodland Expert (adult
+  difficulty), both unlocked, plus four placeholder slots (locked "Coming Soon").
+  Procedural vector preview art for each card. Cursor remembers last chosen level
+  on re-entry. Grid navigation via arrow keys; Enter/Space to select, Backspace
+  to go back (dead-end for now).
 - **Ambient particle layer** ("pollen"): a parallaxing field of bright warm-white
   light motes drifting in the air behind the world, for depth. The sky was
   deepened to a soft blue (`#96c8f2`) so the fine motes read clearly against it.
@@ -129,7 +130,7 @@ levels are next.
 - **Distinct character abilities** for Blue/Grey Ted Ted and Hot Chocolate: they
   currently play identically to Yellow (Battenberg has triple-jump; planned:
   unique traits or power-ups for the rest of the roster).
-- **More levels** (Alpine and the four Coming Soon slots): unlock logic and
+- **More levels** (the four remaining Coming Soon slots): unlock logic and
   per-level geometry/theming once they're authored. Save system hooks already
   in place for future unlock-state persistence.
 - **Save system**: persist chosen character and best gem counts/badges earned
