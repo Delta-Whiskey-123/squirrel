@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.8.2** (2026-08-13)
+**Current version: v0.9.0** (2026-08-18)
 
 ---
 
@@ -44,11 +44,12 @@ a full run. (To be removed before release.)
 
 ## Progress summary
 
-The engine, game feel, and core level are complete with five playable characters,
-audio, a three-tier collectable gem system, and a full badge celebration on
-finishing the level. The core gameplay loop is closed end-to-end: pick a
-character, run the level, collect gems, exit via the hut, and earn the badge.
-Distinct character abilities and more levels are next.
+The engine, game feel, and two levels (Training and the adult-difficulty Woodland
+Expert) are complete with five playable characters, audio, a three-tier
+collectable gem system, and a full badge celebration on finishing a level. The
+core gameplay loop is closed end-to-end: pick a character, run the level, collect
+gems, exit via the hut, and earn the badge. Distinct character abilities and more
+levels are next.
 
 **Done**
 - Fixed-timestep (60 Hz) game loop, letterboxed 960×540 canvas, auto-pause on
@@ -141,6 +142,28 @@ Distinct character abilities and more levels are next.
 ---
 
 ## Version history
+
+### v0.9.0 — Woodland Expert level (2026-08-18)
+- **Second playable level, "Woodland Expert"**, unlocked in level-select slot 2
+  (replacing the *Alpine* placeholder). It shares Training's Woodland world —
+  same parallax scenery, pollen ambience, palette, and exit hut — so a parent can
+  play the same game as their child but get a genuine challenge.
+- **50% longer**: the world runs to X151 / **11,778px** (vs Training's 7,878),
+  authored as `EXPERT_PROFILE` + `EXPERT_PLATS` in `js/level.js`.
+- **Progressive difficulty** across three zones (**Warm-up → Skilled → Expert**),
+  left to right. Platform heights climb toward a ~1,080px-tall Expert stack
+  reached by chained double-jumps.
+- **50 coins, tiered by difficulty**: **25 bronze** along the guided low path,
+  **15 silver** on mid platforms, **10 gold** on the hardest, highest platforms.
+  Every coin is reachable with the base double-jump; springs and character
+  abilities only make it quicker.
+- **Soft fall, no death**: a missed jump drops to the full-width ground band and
+  you climb back — kid-friendly, using the engine's native floor (no new death
+  logic).
+- **Per-level geometry**: `Level.load(id)` now rebuilds solids/springs/gems/exit
+  and swaps the active terrain `PROFILE` per level, so **Training (id 1) is
+  unchanged** while id 2 builds the Expert world. The level-select card carries a
+  matching Woodland thumbnail.
 
 ### v0.8.2 — Terrain detailing: edge outlines & soil pebbles (2026-08-13)
 - **Vertical terrain edge outlines**: every exposed step face — both rises and
