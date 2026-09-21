@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.9.0** (2026-08-18)
+**Current version: v0.9.1** (2026-09-21)
 
 ---
 
