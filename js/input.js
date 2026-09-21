@@ -102,6 +102,15 @@ const Input = (function () {
     tap['-1'].released = tap['1'].released = false;
   }
 
+  // Touch / synthetic presses. The touch layer (main.js) drives these with the
+  // same key codes the keyboard uses ('ArrowLeft', 'ArrowRight', 'Space'), so a
+  // screen tap flows through the identical onKeyDown/onKeyUp machinery — coyote
+  // time, jump buffering, variable-height jump, and the double-tap-and-hold
+  // sprint all behave exactly as they do on a keyboard. onKeyDown already
+  // ignores a code that's still held, so a held finger can't auto-repeat.
+  function pressCode(code)   { onKeyDown({ code, preventDefault() {} }); }
+  function releaseCode(code) { onKeyUp({ code, preventDefault() {} }); }
+
   // Advance timers. Called once per fixed physics step with dt in seconds.
   function update(dt) {
     if (jumpBuffer > 0) jumpBuffer = Math.max(0, jumpBuffer - dt);
@@ -132,6 +141,7 @@ const Input = (function () {
     moveX,
     jumpQueued, consumeJump,
     sprintHeld, setDoubleTapWindow,
+    pressCode, releaseCode,
     get jumpHeld() { return jumpHeld; },
     TOUCH_ENABLED,
   };

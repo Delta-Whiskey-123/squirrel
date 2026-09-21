@@ -199,7 +199,12 @@
   const DOWN = (c) => c === 'ArrowDown' || c === 'KeyS';
   const BACK = (c) => c === 'Backspace';
 
-  window.addEventListener('keydown', (e) => {
+  // The one keyboard handler for every screen. Named (not an inline listener) so
+  // the touch layer can replay menu actions through it with synthetic events —
+  // e.g. handleKey({ code: 'Enter' }) to confirm the current highlight, or
+  // { code: 'Escape' } to open/close the pause menu — reusing all the logic here.
+  function handleKey(e) {
+    if (!e.preventDefault) e.preventDefault = function () {};
     // Escape opens/closes the pause menu during play.
     if (e.code === 'Escape') {
       if (screen === 'playing') { e.preventDefault(); pauseIndex = 0; screen = 'pausemenu'; }
@@ -278,7 +283,238 @@
       startPlaying();
       return;
     }
-  });
+  }
+  window.addEventListener('keydown', handleKey);
+
+  // ======================================================================
+  //  Touch input — smartphone controls (iPhone + Android, Pointer Events)
+  // ----------------------------------------------------------------------
+  //  Gameplay (screen 'playing'): the screen splits down the middle.
+  //    • Left half  = MOVE. Its outer part (screen edge) moves left, its inner
+  //      part (toward centre) moves right — fixed halves, so sliding a thumb
+  //      across the divider switches direction.
+  //    • Right half = JUMP.
+  //  Presses are fed through Input.pressCode/releaseCode using the same key
+  //  codes as the keyboard, so tap = short hop, hold = full height, repeat-tap =
+  //  multi-jump, and double-tap-and-hold on the move side = sprint — identical
+  //  to keyboard, for every character. Multi-touch is tracked per pointerId so
+  //  a move thumb and a jump thumb work at once.
+  //
+  //  Menus (every other screen): one tap highlights an item; a second tap on the
+  //  SAME item within DOUBLE_TAP_MS confirms it and progresses — replayed through
+  //  handleKey so menu behaviour matches the keyboard exactly.
+  //
+  //  Only real touches (pointerType 'touch'/'pen') drive gameplay, so desktop
+  //  mouse + keyboard are untouched; menu taps accept a mouse too, as a bonus.
+  //
+  //  DEV: mouse-as-touch. Off by default. When on, a mouse also drives the play
+  //  zones so the controls can be hand-tested on a PC (one pointer only, so no
+  //  simultaneous move+jump — that still needs a real multi-touch device). Enable
+  //  with ?mousetouch=1 in the URL, or call devMouseTouch() in the console; the
+  //  choice persists in localStorage. It changes nothing on a phone or in a
+  //  shipped build where it's left off.
+  // ======================================================================
+
+  let devMouseAsTouch = false;
+  try {
+    const q = new URLSearchParams(location.search).get('mousetouch');
+    devMouseAsTouch = q === '1' || q === 'true' ||
+      localStorage.getItem('squirrel.devMouseTouch') === '1';
+  } catch (e) {}
+  // Console toggle: devMouseTouch() flips it, devMouseTouch(true/false) sets it.
+  window.devMouseTouch = function (on) {
+    devMouseAsTouch = on === undefined ? !devMouseAsTouch : !!on;
+    try { localStorage.setItem('squirrel.devMouseTouch', devMouseAsTouch ? '1' : '0'); } catch (e) {}
+    console.log('[Squirrel] mouse-as-touch is now ' + (devMouseAsTouch ? 'ON' : 'OFF'));
+    return devMouseAsTouch;
+  };
+  console.log('[Squirrel] DEV: call devMouseTouch() to let the mouse drive the play zones' +
+    (devMouseAsTouch ? ' (currently ON)' : ''));
+
+  // Does this pointer event count as a "touch" for gameplay? Real touches always;
+  // a mouse only when the dev flag is on.
+  function isTouchLike(e) {
+    return e.pointerType === 'touch' || e.pointerType === 'pen' ||
+      (devMouseAsTouch && e.pointerType === 'mouse');
+  }
+
+  const MENU_BTN = { w: 78, h: 30, x: VIEW_W - 78 - 12, y: 10 }; // top-right, shared with drawMenuButton
+  const HALF_X = VIEW_W / 2;      // vertical split: left = move, right = jump
+  const MOVE_SUB_X = VIEW_W / 4;  // within the left half: < = move left, ≥ = move right
+  const DOUBLE_TAP_MS = 320;      // window for a confirming second tap on the same item
+
+  // Live gameplay pointers: pointerId → code ('ArrowLeft' | 'ArrowRight' | 'Space' | null).
+  const touchPointers = new Map();
+  // Codes currently held via touch, so releases never fight the keyboard.
+  const touchHeld = new Set();
+  // Last menu tap, for double-tap detection: { screen, target, t }.
+  let lastTap = { screen: null, target: null, t: 0 };
+
+  // Convert a client (viewport) point to 960×540 canvas-buffer coordinates,
+  // undoing the letterbox scale + centring offset.
+  function clientToBuffer(clientX, clientY) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - r.left) / r.width * VIEW_W,
+      y: (clientY - r.top) / r.height * VIEW_H,
+    };
+  }
+
+  function inRect(p, x, y, w, h) { return p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h; }
+
+  // Which gameplay code a buffer point maps to during play (null = none).
+  function gameplayCodeAt(p) {
+    if (p.x >= HALF_X) return 'Space';                 // right half = jump
+    return p.x < MOVE_SUB_X ? 'ArrowLeft' : 'ArrowRight'; // left half = move (outer/inner)
+  }
+
+  // Reconcile Input with the union of all active gameplay pointers. pressCode /
+  // releaseCode are idempotent per code, so this only fires real transitions —
+  // which keeps the coyote/buffer/sprint timing honest.
+  function syncTouchGameplay() {
+    const wanted = new Set();
+    for (const code of touchPointers.values()) if (code) wanted.add(code);
+    for (const code of ['ArrowLeft', 'ArrowRight', 'Space']) {
+      const want = wanted.has(code), have = touchHeld.has(code);
+      if (want && !have) { Input.pressCode(code); touchHeld.add(code); }
+      else if (!want && have) { Input.releaseCode(code); touchHeld.delete(code); }
+    }
+  }
+
+  function releaseAllTouchGameplay() {
+    touchPointers.clear();
+    syncTouchGameplay();
+  }
+
+  // --- Menu hit-testing. Each helper returns the tappable targets for its screen
+  //     as { index, rect:[x,y,w,h] } in buffer coords, using the SAME geometry as
+  //     the matching draw function so taps land exactly on what's drawn. ---
+
+  function levelSelectTargets() {
+    const pw = 860, ph = 480, px = (VIEW_W - pw) / 2, py = (VIEW_H - ph) / 2;
+    const COLS = 3, ROWS = 2, pad = 40, gapX = 24, gapY = 22;
+    const gridTop = py + 82, gridBottom = py + ph - 52;
+    const cardW = (pw - pad * 2 - gapX * (COLS - 1)) / COLS;
+    const cardH = (gridBottom - gridTop - gapY * (ROWS - 1)) / ROWS;
+    return LEVELS.map((lv, i) => {
+      const c = i % COLS, r = (i / COLS) | 0;
+      return { index: i, rect: [px + pad + c * (cardW + gapX), gridTop + r * (cardH + gapY), cardW, cardH] };
+    });
+  }
+
+  function selectTargets() {
+    const pw = 720, ph = 470, py = (VIEW_H - ph) / 2;
+    const gap = 40, maxRow = pw - 56;
+    const sw = Math.min(150, (maxRow - gap * (CHARACTERS.length - 1)) / CHARACTERS.length);
+    const sh = sw * (2 / 3);
+    const total = CHARACTERS.length * sw + (CHARACTERS.length - 1) * gap;
+    const row = VIEW_W / 2 - total / 2, by = py + 316;
+    return CHARACTERS.map((c, i) => ({ index: i, rect: [row + i * (sw + gap), by, sw, sh] }));
+  }
+
+  function pauseTargets() {
+    const pw = 560, ph = 300, py = (VIEW_H - ph) / 2;
+    const bw = 160, bh = 130, gap = 20, by = py + 96;
+    const startX = VIEW_W / 2 - (bw * 3 + gap * 2) / 2;
+    return [0, 1, 2].map((i) => ({ index: i, rect: [startX + i * (bw + gap), by, bw, bh] }));
+  }
+
+  function gameCompleteTargets() {
+    if (!gcState || !gcState.btnActive) return [];
+    const ph = 470, py = (VIEW_H - ph) / 2;
+    const by = py + 400, dx = 66, w = 92, h = 76;
+    return [
+      { index: 0, rect: [VIEW_W / 2 - dx - w / 2, by - h / 2, w, h] }, // Home
+      { index: 1, rect: [VIEW_W / 2 + dx - w / 2, by - h / 2, w, h] }, // Start over
+    ];
+  }
+
+  // The target under a tap for the current menu screen, or null. Screens that are
+  // just "tap to continue" (instructions/complete) return a sentinel { advance:true }.
+  function menuTargetAt(p) {
+    let list = null;
+    if (screen === 'levelselect') list = levelSelectTargets();
+    else if (screen === 'select') list = selectTargets();
+    else if (screen === 'pausemenu') list = pauseTargets();
+    else if (screen === 'gameComplete') list = gameCompleteTargets();
+    else if (screen === 'instructions' || screen === 'complete') return { advance: true };
+    else return null;
+    for (const t of list) if (inRect(p, t.rect[0], t.rect[1], t.rect[2], t.rect[3])) return t;
+    return null;
+  }
+
+  // Do two menu targets refer to the same thing (for double-tap detection)?
+  function sameTarget(a, b) {
+    if (!a || !b) return false;
+    if (a.advance || b.advance) return !!(a.advance && b.advance);
+    return a.index === b.index;
+  }
+
+  // Move the highlight for the current menu screen to a tapped target.
+  function highlightMenu(target) {
+    if (target.advance) return;                       // no highlight on tap-to-continue screens
+    if (screen === 'levelselect') { if (levelIndex !== target.index) { levelIndex = target.index; Sfx.move(); } }
+    else if (screen === 'select') { if (selIndex !== target.index) { selIndex = target.index; Sfx.move(); } }
+    else if (screen === 'pausemenu') { if (pauseIndex !== target.index) { pauseIndex = target.index; Sfx.move(); } }
+    else if (screen === 'gameComplete' && gcState) { if (gcState.gcIndex !== target.index) { gcState.gcIndex = target.index; Sfx.move(); } }
+  }
+
+  // Confirm the current highlight by replaying an Enter through the keyboard path.
+  function confirmMenu() { handleKey({ code: 'Enter' }); }
+
+  function onPointerDown(e) {
+    // First touch doubles as the audio-unlock gesture (mobile has no keydown).
+    Sfx.ensure(); Sfx.resume();
+
+    const touch = isTouchLike(e);
+    const p = clientToBuffer(e.clientX, e.clientY);
+
+    if (screen === 'playing') {
+      if (!touch) return;                             // desktop plays with the keyboard
+      e.preventDefault();
+      if (inRect(p, MENU_BTN.x, MENU_BTN.y, MENU_BTN.w, MENU_BTN.h)) {
+        touchPointers.set(e.pointerId, null);         // consumed by the Menu button, not a jump
+        handleKey({ code: 'Escape' });                // open the pause menu
+        return;
+      }
+      touchPointers.set(e.pointerId, gameplayCodeAt(p));
+      syncTouchGameplay();
+      return;
+    }
+
+    // Menu screens: tap to highlight, double-tap the same item to confirm.
+    const target = menuTargetAt(p);
+    if (!target) return;
+    if (touch) e.preventDefault();
+    const now = performance.now();
+    if (sameTarget(target, lastTap.target) && lastTap.screen === screen && now - lastTap.t <= DOUBLE_TAP_MS) {
+      lastTap = { screen: null, target: null, t: 0 };
+      highlightMenu(target);                          // land the highlight on it, then confirm
+      confirmMenu();
+    } else {
+      highlightMenu(target);
+      lastTap = { screen, target, t: now };
+    }
+  }
+
+  function onPointerMove(e) {
+    if (screen !== 'playing') return;
+    if (!touchPointers.has(e.pointerId)) return;
+    if (touchPointers.get(e.pointerId) === null) return; // Menu-button pointer stays inert
+    const code = gameplayCodeAt(clientToBuffer(e.clientX, e.clientY));
+    if (touchPointers.get(e.pointerId) !== code) { touchPointers.set(e.pointerId, code); syncTouchGameplay(); }
+  }
+
+  function onPointerUp(e) {
+    if (touchPointers.has(e.pointerId)) { touchPointers.delete(e.pointerId); syncTouchGameplay(); }
+  }
+
+  window.addEventListener('pointerdown', onPointerDown, { passive: false });
+  window.addEventListener('pointermove', onPointerMove, { passive: false });
+  window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointercancel', onPointerUp);
+  // If touch is lost (backgrounded, gesture interrupted), don't leave keys stuck.
+  window.addEventListener('blur', releaseAllTouchGameplay);
 
   // --- Fixed-timestep loop ---
   let last = performance.now();
@@ -346,6 +582,7 @@
     if (screen === 'playing' || screen === 'pausemenu') drawHud();
     if (Sfx.isMuted()) drawMuteIcon(screen === 'playing' ? 90 : 0); // dodge the Menu button
     if (screen === 'playing') drawMenuButton();
+    if (devMouseAsTouch && screen === 'playing') drawDevTouchTag();
 
     if (screen === 'levelselect') {
       drawLevelSelect();
@@ -382,8 +619,23 @@
   // Top-right "Menu" button, shown only during play. Visual only for now —
   // opens the door to touch/mouse input later; Escape is still the only way
   // to reach the pause menu today.
+  // A tiny bottom-left tag shown only while the dev mouse-as-touch flag is on, so
+  // it's obvious the play zones are accepting the mouse. Never shows in a build
+  // that leaves the flag off.
+  function drawDevTouchTag() {
+    ctx.save();
+    ctx.font = '600 12px system-ui, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    const label = 'DEV: mouse = touch';
+    const w = ctx.measureText(label).width + 16, x = 10, y = VIEW_H - 10, h = 20;
+    roundRect(x, y - h, w, h, 6);
+    ctx.fillStyle = 'rgba(47,34,51,0.7)'; ctx.fill();
+    ctx.fillStyle = '#ffe08a'; ctx.fillText(label, x + 8, y - 4);
+    ctx.restore();
+  }
+
   function drawMenuButton() {
-    const bw = 78, bh = 30, x = VIEW_W - bw - 12, y = 10;
+    const bw = MENU_BTN.w, bh = MENU_BTN.h, x = MENU_BTN.x, y = MENU_BTN.y;
     roundRect(x, y, bw, bh, 10);
     ctx.fillStyle = 'rgba(255,247,236,0.92)'; ctx.fill();
     ctx.lineWidth = 3; ctx.strokeStyle = '#2f2233'; ctx.stroke();

@@ -9,6 +9,14 @@ html, body {
   overflow: hidden;
   background: #1b1030;          /* dark border around the letterboxed stage */
   font-family: system-ui, sans-serif;
+  /* Mobile: kill scrolling, pull-to-refresh, and double-tap zoom so touch input
+     reaches the game cleanly. The canvas already sets touch-action; extend it to
+     the whole surface. */
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #stage {
@@ -17,6 +25,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
 }
 
 /* The canvas is sized in JS to preserve the 960x540 aspect ratio.

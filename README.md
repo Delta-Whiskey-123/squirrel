@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.9.1** (2026-09-21)
+**Current version: v0.9.2** (2026-09-21)
 
 ---
 
@@ -36,9 +36,34 @@ Two controls, plus menu keys — the whole input surface for a 4-year-old is:
 | Back (menus) | Backspace |
 | Pause menu / Back to select | Escape |
 
+### Touch controls (phones & tablets)
+
+The game is playable on a smartphone straight from the browser — no app. During
+play the screen splits down the middle:
+
+| Zone | Action |
+|---|---|
+| **Left half** | **Move** — its outer part (screen edge) moves left, its inner part (toward centre) moves right |
+| **Right half** | **Jump** — tap = short hop, hold = full height, tap again in mid-air = double jump |
+| **Move zone, double-tap-and-hold** | Sprint (Yellow Ted Ted), same as the keyboard |
+| **Menu button (top-right)** | Opens the pause menu |
+
+Touch feeds the same input path as the keyboard, so every character feels
+identical, and multi-touch means a move thumb and a jump thumb work at once.
+
+**Menus** are tap-driven: one tap highlights an item, and a second tap on the
+same item confirms it and moves on.
+
+> Phones need the game **served over HTTP(S)** (a phone can't open a file on your
+> PC). Any static host works — GitHub Pages, Netlify, Cloudflare Pages.
+
 There is a dev-only shortcut: during play, **type `fast`** to warp to 10 tiles
 short of the exit hut, so the end-of-game badge sequence can be reached without
 a full run. (To be removed before release.)
+
+A second dev-only aid for desktop testing: call **`devMouseTouch()`** in the
+browser console (or load with `?mousetouch=1`) to let a mouse drive the touch
+zones. Off by default; a "DEV: mouse = touch" tag shows while it's on.
 
 ---
 
@@ -143,6 +168,30 @@ levels are next.
 ---
 
 ## Version history
+
+### v0.9.2 — Smartphone touch controls (2026-09-21)
+- **Playable on phones from the browser**, no app. In-play the screen splits:
+  **left half moves** (outer = left, inner = right), **right half jumps**.
+  Presses route through the same key-code path as the keyboard
+  (`Input.pressCode`/`releaseCode`), so tap = short hop, hold = full height,
+  repeat-tap = multi-jump, and double-tap-and-hold on the move side = sprint —
+  identical feel for every character.
+- **Multi-touch** tracked per `pointerId`, so a move thumb and a jump thumb work
+  at the same time.
+- **Menus are tap-driven**: one tap highlights an item, a second tap on the same
+  item confirms and progresses (replayed through the keyboard handler, so
+  behaviour matches exactly). The top-right **Menu button opens pause** and takes
+  priority over the jump zone.
+- Only real touches drive gameplay (`pointerType` touch/pen), so **desktop mouse
+  and keyboard are untouched**; menu taps accept a mouse too.
+- **Audio now unlocks on first touch** (it previously only unlocked on `keydown`,
+  which never fires on a phone).
+- Mobile hardening: `viewport-fit=cover`, `touch-action: none` +
+  `overscroll-behavior: none` (kills scroll, pull-to-refresh, double-tap zoom).
+- **Dev aid**: `devMouseTouch()` / `?mousetouch=1` lets a mouse drive the play
+  zones for desktop testing (off by default).
+- *Deferred:* the instructions screen still shows keyboard glyphs, and there's no
+  portrait "rotate your phone" prompt yet — both are next.
 
 ### v0.9.0 — Woodland Expert level (2026-08-18)
 - **Second playable level, "Woodland Expert"**, unlocked in level-select slot 2
