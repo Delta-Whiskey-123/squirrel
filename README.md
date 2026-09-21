@@ -52,7 +52,15 @@ Touch feeds the same input path as the keyboard, so every character feels
 identical, and multi-touch means a move thumb and a jump thumb work at once.
 
 **Menus** are tap-driven: one tap highlights an item, and a second tap on the
-same item confirms it and moves on.
+same item confirms it and moves on. The start screen's **Press ENTER** button
+and the Settings switches act on a single tap.
+
+**Settings** live behind the pause menu's middle button (a two-cog ⚙ icon, where
+Mute used to be) and hold two switches — **Touch zones** and **Sound** — plus
+Back. Turning **Touch zones** on shows a mostly-transparent guide across the
+lower fifth of the screen (◀ move left, ▶ move right, ▲ jump) that mirrors the
+real input split. It's off by default, remembered between sessions, and purely a
+visual aid — the input zones themselves stay full-height.
 
 > Phones need the game **served over HTTP(S)** (a phone can't open a file on your
 > PC). Any static host works — GitHub Pages, Netlify, Cloudflare Pages.
@@ -181,7 +189,17 @@ levels are next.
 - **Menus are tap-driven**: one tap highlights an item, a second tap on the same
   item confirms and progresses (replayed through the keyboard handler, so
   behaviour matches exactly). The top-right **Menu button opens pause** and takes
-  priority over the jump zone.
+  priority over the jump zone. The Settings switches and the start-screen button
+  act on a **single tap**.
+- **Settings panel** — the pause menu's middle button is now a two-cog **Settings**
+  icon (replacing the old Mute button). It opens a panel with **Touch zones** and
+  **Sound** switches plus a Back button.
+- **Touch-zone guide overlay** — a mostly-transparent map across the lower fifth
+  of the screen (◀ / ▶ / ▲) mirroring the live input split. Off by default,
+  remembered in `localStorage`, toggled from Settings; the input zones stay
+  full-height, so it's a visual guide only.
+- **Start screen** — the "Press ENTER" prompt is now a tappable button, and the
+  controls card lays **Move** (← →) and **Jump** (SPACE / ↑) out side by side.
 - Only real touches drive gameplay (`pointerType` touch/pen), so **desktop mouse
   and keyboard are untouched**; menu taps accept a mouse too.
 - **Audio now unlocks on first touch** (it previously only unlocked on `keydown`,
@@ -190,8 +208,8 @@ levels are next.
   `overscroll-behavior: none` (kills scroll, pull-to-refresh, double-tap zoom).
 - **Dev aid**: `devMouseTouch()` / `?mousetouch=1` lets a mouse drive the play
   zones for desktop testing (off by default).
-- *Deferred:* the instructions screen still shows keyboard glyphs, and there's no
-  portrait "rotate your phone" prompt yet — both are next.
+- *Deferred:* a portrait "rotate your phone" prompt, and the controls card still
+  teaches keyboard keys rather than touch gestures — both are next.
 
 ### v0.9.0 — Woodland Expert level (2026-08-18)
 - **Second playable level, "Woodland Expert"**, unlocked in level-select slot 2

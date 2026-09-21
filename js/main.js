@@ -48,9 +48,21 @@
   let selectedLevelId = LEVELS[0].id; // chosen level; defaults to 1 (crash guard)
   let selIndex = 0;    // highlighted character in the select row
   let lockShake = 0;   // brief wobble when a locked character is confirmed
-  let pauseIndex = 0;  // highlighted button in the pause menu (0 resume, 1 mute, 2 restart)
+  let pauseIndex = 0;  // highlighted button in the pause menu (0 resume, 1 settings, 2 restart)
+  let settingsIndex = 0; // highlighted row in the Settings panel (0 zones, 1 sound, 2 back)
   let gems = { A: 0, B: 0, C: 0 }; // collected count per tier (reset each run)
   let gcState = null;              // end-screen animation state (see startGameComplete)
+
+  // Touch-zone guide overlay: a mostly-transparent map of the play zones across
+  // the lower fifth of the screen. Off by default; the choice persists like Mute.
+  // Toggled from the pause menu's Settings panel. Input zones stay full-height —
+  // this is a visual guide only.
+  let zonesOn = false;
+  try { zonesOn = localStorage.getItem('squirrel.zones') === '1'; } catch (e) {}
+  function setZonesOn(v) {
+    zonesOn = !!v;
+    try { localStorage.setItem('squirrel.zones', zonesOn ? '1' : '0'); } catch (e) {}
+  }
 
   // Badge art for the end screen. Loaded from disk; if it can't be found we draw
   // a simple placeholder instead and log where we looked — never crash.
@@ -208,6 +220,7 @@
     // Escape opens/closes the pause menu during play.
     if (e.code === 'Escape') {
       if (screen === 'playing') { e.preventDefault(); pauseIndex = 0; screen = 'pausemenu'; }
+      else if (screen === 'settings') { e.preventDefault(); Sfx.back(); screen = 'pausemenu'; } // Settings → pause
       else if (screen === 'pausemenu') { e.preventDefault(); Sfx.back(); resumeGame(); }
       else if (screen === 'select') { e.preventDefault(); Sfx.back(); screen = 'levelselect'; } // back to level select
       // 'levelselect': nothing precedes it yet (splash/hub arrives in M4) — no-op.
@@ -236,14 +249,27 @@
       return;
     }
     if (screen === 'pausemenu') {
-      const PCOUNT = 3; // Resume, Mute, Start over
+      const PCOUNT = 3; // Resume, Settings, Start over
       if (LEFT(e.code))  { e.preventDefault(); pauseIndex = (pauseIndex + PCOUNT - 1) % PCOUNT; Sfx.move(); }
       else if (RIGHT(e.code)) { e.preventDefault(); pauseIndex = (pauseIndex + 1) % PCOUNT; Sfx.move(); }
       else if (CONFIRM(e.code)) {
         e.preventDefault();
         if (pauseIndex === 0) { Sfx.confirm(); resumeGame(); }
-        else if (pauseIndex === 1) { Sfx.toggleMute(); }        // stays on pause menu
+        else if (pauseIndex === 1) { Sfx.confirm(); settingsIndex = 0; screen = 'settings'; } // open Settings
         else { Sfx.confirm(); screen = 'select'; }              // restart from character select
+      }
+      return;
+    }
+    if (screen === 'settings') {
+      const SCOUNT = 3; // Touch zones, Sound, Back
+      if (UP(e.code) || LEFT(e.code))    { e.preventDefault(); settingsIndex = (settingsIndex + SCOUNT - 1) % SCOUNT; Sfx.move(); }
+      else if (DOWN(e.code) || RIGHT(e.code)) { e.preventDefault(); settingsIndex = (settingsIndex + 1) % SCOUNT; Sfx.move(); }
+      else if (BACK(e.code)) { e.preventDefault(); Sfx.back(); screen = 'pausemenu'; }
+      else if (CONFIRM(e.code)) {
+        e.preventDefault();
+        if (settingsIndex === 0) { setZonesOn(!zonesOn); Sfx.confirm(); }   // toggle the touch-zone guide
+        else if (settingsIndex === 1) { Sfx.toggleMute(); }                 // toggle sound (mute)
+        else { Sfx.back(); screen = 'pausemenu'; }                          // Back to pause
       }
       return;
     }
@@ -419,6 +445,20 @@
     return [0, 1, 2].map((i) => ({ index: i, rect: [startX + i * (bw + gap), by, bw, bh] }));
   }
 
+  // Settings panel: two full-width toggle rows (Touch zones, Sound) plus a Back
+  // button. Single geometry source, shared by draw + hit-test. SETTINGS_PANEL is
+  // the card the rows sit inside.
+  const SETTINGS_PANEL = { pw: 560, ph: 300, px: (VIEW_W - 560) / 2, py: (VIEW_H - 300) / 2 };
+  function settingsTargets() {
+    const { px, py, pw } = SETTINGS_PANEL;
+    const rx = px + 40, rw = pw - 80, rh = 52;
+    return [
+      { index: 0, rect: [rx, py + 82, rw, rh] },          // Touch zones
+      { index: 1, rect: [rx, py + 144, rw, rh] },         // Sound
+      { index: 2, rect: [VIEW_W / 2 - 80, py + 220, 160, 44] }, // Back
+    ];
+  }
+
   function gameCompleteTargets() {
     if (!gcState || !gcState.btnActive) return [];
     const ph = 470, py = (VIEW_H - ph) / 2;
@@ -436,8 +476,13 @@
     if (screen === 'levelselect') list = levelSelectTargets();
     else if (screen === 'select') list = selectTargets();
     else if (screen === 'pausemenu') list = pauseTargets();
+    else if (screen === 'settings') list = settingsTargets();
     else if (screen === 'gameComplete') list = gameCompleteTargets();
-    else if (screen === 'instructions' || screen === 'complete') return { advance: true };
+    else if (screen === 'instructions') {
+      const r = instructionsButtonRect();               // only the "Press ENTER" button starts play
+      return inRect(p, r[0], r[1], r[2], r[3]) ? { advance: true } : null;
+    }
+    else if (screen === 'complete') return { advance: true };
     else return null;
     for (const t of list) if (inRect(p, t.rect[0], t.rect[1], t.rect[2], t.rect[3])) return t;
     return null;
@@ -456,6 +501,7 @@
     if (screen === 'levelselect') { if (levelIndex !== target.index) { levelIndex = target.index; Sfx.move(); } }
     else if (screen === 'select') { if (selIndex !== target.index) { selIndex = target.index; Sfx.move(); } }
     else if (screen === 'pausemenu') { if (pauseIndex !== target.index) { pauseIndex = target.index; Sfx.move(); } }
+    else if (screen === 'settings') { if (settingsIndex !== target.index) { settingsIndex = target.index; Sfx.move(); } }
     else if (screen === 'gameComplete' && gcState) { if (gcState.gcIndex !== target.index) { gcState.gcIndex = target.index; Sfx.move(); } }
   }
 
@@ -486,6 +532,12 @@
     const target = menuTargetAt(p);
     if (!target) return;
     if (touch) e.preventDefault();
+
+    // Direct-tap screens: a single tap acts immediately. Settings toggles/Back
+    // flip or go back; the instructions "Press ENTER" button starts play — no
+    // double-tap needed for a plain button.
+    if (screen === 'settings' || screen === 'instructions') { highlightMenu(target); confirmMenu(); return; }
+
     const now = performance.now();
     if (sameTarget(target, lastTap.target) && lastTap.screen === screen && now - lastTap.t <= DOUBLE_TAP_MS) {
       lastTap = { screen: null, target: null, t: 0 };
@@ -566,7 +618,7 @@
     // Parallax landscape backdrop (scenery.js): only behind the live world, so
     // menus and level-select thumbnails are untouched. Sits between the flat
     // sky and the ambient pollen.
-    if (screen === 'playing' || screen === 'pausemenu' || screen === 'gameComplete') {
+    if (screen === 'playing' || screen === 'pausemenu' || screen === 'settings' || screen === 'gameComplete') {
       Scenery.drawBack(ctx, camera.x, camera.y, VIEW_W, VIEW_H);
     }
 
@@ -596,9 +648,17 @@
       drawGameComplete();
     } else if (screen === 'pausemenu') {
       drawPause();
+    } else if (screen === 'settings') {
+      drawSettings();
     } else if (paused) {
       ctx.fillStyle = 'rgba(20,10,40,0.45)';
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+
+    // Touch-zone guide sits on top of everything, along the lower fifth. Shown in
+    // play and while its own settings screens are open (so a toggle previews live).
+    if (zonesOn && (screen === 'playing' || screen === 'pausemenu' || screen === 'settings')) {
+      drawZoneOverlay();
     }
   }
 
@@ -657,9 +717,9 @@
     }
   }
 
-  // The pause menu: three buttons — Resume, Mute/Unmute, or Start over (back to
-  // select). Left/Right cycles (with wraparound), Space/Enter confirms, Escape
-  // resumes. Mute toggles in place and does not close the menu.
+  // The pause menu: three buttons — Resume, Settings (opens the settings panel),
+  // or Start over (back to select). Left/Right cycles (with wraparound),
+  // Space/Enter confirms, Escape resumes.
   function drawPause() {
     ctx.fillStyle = 'rgba(20,10,40,0.55)';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -675,11 +735,10 @@
 
     const bw = 160, bh = 130, gap = 20, by = py + 96;
     const totalW = bw * 3 + gap * 2, startX = VIEW_W / 2 - totalW / 2;
-    const muted = Sfx.isMuted();
     const buttons = [
-      { label: 'Resume',                  color: '#3a8f2e', icon: 'play' },
-      { label: muted ? 'Unmute' : 'Mute', color: '#8a6d3b', icon: 'speaker' },
-      { label: 'Start over',              color: '#2f7fd6', icon: 'restart' },
+      { label: 'Resume',     color: '#3a8f2e', icon: 'play' },
+      { label: 'Settings',   color: '#8a6d3b', icon: 'cogs' },
+      { label: 'Start over', color: '#2f7fd6', icon: 'restart' },
     ];
     buttons.forEach((b, i) => {
       const bx = startX + i * (bw + gap);
@@ -693,7 +752,7 @@
       ctx.fillStyle = b.color; ctx.strokeStyle = b.color;
       if (b.icon === 'play') drawPlayIcon(cx, cyi);
       else if (b.icon === 'restart') drawRestartIcon(cx, cyi);
-      else drawSpeakerIcon(cx, cyi, muted);
+      else drawCogsIcon(cx, cyi, b.color);
 
       ctx.fillStyle = '#2f2233'; ctx.font = '600 22px system-ui, sans-serif';
       ctx.fillText(b.label, cx, by + bh - 28);
@@ -738,6 +797,138 @@
       ctx.beginPath(); ctx.arc(cx + 4, cy, 8, -0.6, 0.6); ctx.stroke();
       ctx.beginPath(); ctx.arc(cx + 4, cy, 13, -0.5, 0.5); ctx.stroke();
     }
+  }
+
+  // Two interlocking cogs for the pause-menu Settings button. A big gear plus a
+  // smaller one tucked to its lower-right; the hole is punched in the button's
+  // face colour so it reads as a ring.
+  function drawCogsIcon(cx, cy, color) {
+    // ~40% larger than the original 11/7 gears, nudged so the pair stays centred.
+    drawGear(cx - 8, cy - 4, 15, color, '#f3e7d2');
+    drawGear(cx + 13, cy + 10, 10, color, '#f3e7d2');
+  }
+
+  // One gear: a coarse toothed disc (alternating outer/inner radius) with a
+  // centre hole. A dark outline on both the body and the hole keeps it crisp and
+  // legible at button size.
+  function drawGear(cx, cy, r, color, holeColor) {
+    const teeth = 8, ro = r, ri = r * 0.74;
+    ctx.beginPath();
+    for (let i = 0; i <= teeth * 2; i++) {
+      const a = (i / (teeth * 2)) * Math.PI * 2;
+      const rr = (i % 2 === 0) ? ro : ri;
+      const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = color; ctx.fill();
+    ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.42, 0, 7);
+    ctx.fillStyle = holeColor; ctx.fill(); ctx.lineWidth = 1.5; ctx.stroke();
+  }
+
+  // The Settings panel (opened from the pause menu). Two toggle rows — Touch
+  // zones and Sound — plus a Back button. Up/Down (or Left/Right) moves the
+  // focus, Space/Enter flips a toggle or backs out, Escape/Backspace goes back.
+  function drawSettings() {
+    ctx.fillStyle = 'rgba(20,10,40,0.55)';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    const { pw, ph, px, py } = SETTINGS_PANEL;
+    roundRect(px, py, pw, ph, 28);
+    ctx.fillStyle = '#fff7ec'; ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#e8622c'; ctx.font = '700 40px system-ui, sans-serif';
+    ctx.fillText('Settings', VIEW_W / 2, py + 46);
+
+    const t = settingsTargets();
+    drawSettingRow(t[0].rect, 'Touch zones', zonesOn, settingsIndex === 0);
+    drawSettingRow(t[1].rect, 'Sound', !Sfx.isMuted(), settingsIndex === 1);
+    drawBackButton(t[2].rect, settingsIndex === 2);
+  }
+
+  // A settings row: a full-width cap with a left-aligned label and an on/off
+  // pill toggle on the right. Focused row is ringed green.
+  function drawSettingRow(rect, label, on, focused) {
+    const [x, y, w, h] = rect;
+    roundRect(x, y, w, h, 14);
+    ctx.fillStyle = '#f3e7d2'; ctx.fill();
+    if (focused) { ctx.lineWidth = 5; ctx.strokeStyle = '#3a8f2e'; }
+    else { ctx.lineWidth = 3; ctx.strokeStyle = '#d8c9ad'; }
+    ctx.stroke();
+
+    ctx.fillStyle = '#2f2233'; ctx.font = '600 24px system-ui, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + 22, y + h / 2 + 1);
+
+    const tw = 62, th = 30;
+    drawToggle(x + w - tw - 18, y + (h - th) / 2, tw, th, on);
+  }
+
+  // A pill switch: green with the knob to the right when on, muted grey with the
+  // knob to the left when off.
+  function drawToggle(x, y, w, h, on) {
+    roundRect(x, y, w, h, h / 2);
+    ctx.fillStyle = on ? '#3a8f2e' : '#b9ad97'; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+    const kr = h / 2 - 4, kx = on ? x + w - kr - 4 : x + kr + 4, ky = y + h / 2;
+    ctx.beginPath(); ctx.arc(kx, ky, kr, 0, 7);
+    ctx.fillStyle = '#fff7ec'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+  }
+
+  // Wordless-ish Back button: a left chevron and the word "Back". Focused = ringed.
+  function drawBackButton(rect, focused) {
+    const [x, y, w, h] = rect;
+    roundRect(x, y, w, h, 14);
+    ctx.fillStyle = '#f3e7d2'; ctx.fill();
+    if (focused) { ctx.lineWidth = 5; ctx.strokeStyle = '#3a8f2e'; }
+    else { ctx.lineWidth = 3; ctx.strokeStyle = '#d8c9ad'; }
+    ctx.stroke();
+
+    const ax = x + 30, ay = y + h / 2;
+    ctx.strokeStyle = '#2f2233'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(ax + 8, ay - 8); ctx.lineTo(ax - 6, ay); ctx.lineTo(ax + 8, ay + 8); ctx.stroke();
+    ctx.fillStyle = '#2f2233'; ctx.font = '600 22px system-ui, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText('Back', ax + 22, ay + 1);
+  }
+
+  // The touch-zone guide: a mostly-transparent band across the lower fifth of the
+  // screen, split exactly like the live input — left-outer moves left (◀),
+  // left-inner moves right (▶), right half jumps (▲). Purely a visual aid; the
+  // real input zones remain full-height.
+  function drawZoneOverlay() {
+    const y0 = VIEW_H * 0.8, h = VIEW_H - y0;
+    ctx.save();
+    // Faint region tints.
+    ctx.fillStyle = 'rgba(47,34,51,0.10)'; ctx.fillRect(0, y0, MOVE_SUB_X, h);                 // move left
+    ctx.fillStyle = 'rgba(47,34,51,0.06)'; ctx.fillRect(MOVE_SUB_X, y0, HALF_X - MOVE_SUB_X, h); // move right
+    ctx.fillStyle = 'rgba(47,34,51,0.10)'; ctx.fillRect(HALF_X, y0, VIEW_W - HALF_X, h);        // jump
+    // Top edge + dashed dividers matching the input split.
+    ctx.strokeStyle = 'rgba(47,34,51,0.22)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(VIEW_W, y0); ctx.stroke();
+    ctx.setLineDash([7, 7]); ctx.strokeStyle = 'rgba(47,34,51,0.28)';
+    ctx.beginPath(); ctx.moveTo(MOVE_SUB_X, y0); ctx.lineTo(MOVE_SUB_X, VIEW_H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(HALF_X, y0); ctx.lineTo(HALF_X, VIEW_H); ctx.stroke();
+    ctx.setLineDash([]);
+    // Direction arrows, centred in each region.
+    const cy = y0 + h / 2;
+    drawZoneArrow(MOVE_SUB_X / 2, cy, 'left');
+    drawZoneArrow(MOVE_SUB_X + (HALF_X - MOVE_SUB_X) / 2, cy, 'right');
+    drawZoneArrow(HALF_X + (VIEW_W - HALF_X) / 2, cy, 'up');
+    ctx.restore();
+  }
+
+  function drawZoneArrow(cx, cy, dir) {
+    const s = 15;
+    ctx.fillStyle = 'rgba(47,34,51,0.38)';
+    ctx.beginPath();
+    if (dir === 'left') { ctx.moveTo(cx - s, cy); ctx.lineTo(cx + s, cy - s); ctx.lineTo(cx + s, cy + s); }
+    else if (dir === 'right') { ctx.moveTo(cx + s, cy); ctx.lineTo(cx - s, cy - s); ctx.lineTo(cx - s, cy + s); }
+    else { ctx.moveTo(cx, cy - s); ctx.lineTo(cx - s, cy + s); ctx.lineTo(cx + s, cy + s); }
+    ctx.closePath(); ctx.fill();
   }
 
   // Level select: a 3x2 grid of level cards over the dimmed world. Arrows move
@@ -1105,29 +1296,52 @@
     ctx.textBaseline = 'middle';
     ctx.fillText('Squirrel Club', VIEW_W / 2, py + 56);
 
-    // Row 1: MOVE — arrow-left / arrow-right keys.
-    const rowY1 = py + 150;
-    drawKey(px + 150, rowY1, '←');
-    drawKey(px + 210, rowY1, '→');
+    // Controls — Move and Jump side by side, each with its label above its keys,
+    // spread across the card and sitting evenly between the title above and the
+    // Press ENTER button below.
+    const cx = VIEW_W / 2;
+    const leftCx = cx - 130, rightCx = cx + 130;
+    const labelY = py + 154, keysY = py + 176;
     ctx.fillStyle = '#2f2233';
-    ctx.font = '600 30px system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('Move', px + 300, rowY1 + 22);
-
-    // Row 2: JUMP — a wide space bar.
-    const rowY2 = py + 230;
-    drawKey(px + 150, rowY2, 'space', 120);
-    ctx.fillStyle = '#2f2233';
-    ctx.fillText('Jump', px + 300, rowY2 + 22);
-
-    // Prompt: gently pulsing "Press ENTER".
-    const pulse = 0.6 + 0.4 * Math.abs(Math.sin(blink * 2.2));
-    ctx.globalAlpha = pulse;
-    ctx.fillStyle = '#3a8f2e';
-    ctx.font = '700 30px system-ui, sans-serif';
+    ctx.font = '600 26px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Press ENTER to play', VIEW_W / 2, py + ph - 42);
+    ctx.textBaseline = 'middle';
+
+    // MOVE — arrow-left / arrow-right keys.
+    ctx.fillText('Move', leftCx, labelY);
+    drawKey(leftCx - 52, keysY, '←');
+    drawKey(leftCx + 6, keysY, '→');
+
+    // JUMP — the SPACE bar or the up-arrow key (both jump).
+    ctx.fillText('Jump', rightCx, labelY);
+    drawKey(rightCx - 69, keysY, 'space', 80);
+    drawKey(rightCx + 23, keysY, '↑');
+
+    // Start button — "Press ENTER". A real button so a phone player has a clear
+    // thing to tap; the label drops "to play" so it doesn't tell a mobile user to
+    // press a key they don't have. A gentle halo pulses to draw the eye.
+    const [bx, by, bw, bh] = instructionsButtonRect();
+    const pulse = 0.5 + 0.5 * Math.abs(Math.sin(blink * 2.2));
+    ctx.globalAlpha = 0.35 * pulse;
+    roundRect(bx - 6, by - 6, bw + 12, bh + 12, 18);
+    ctx.lineWidth = 4; ctx.strokeStyle = '#3a8f2e'; ctx.stroke();
     ctx.globalAlpha = 1;
+
+    roundRect(bx, by, bw, bh, 14);
+    ctx.fillStyle = '#3a8f2e'; ctx.fill();
+    ctx.lineWidth = 4; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+    ctx.fillStyle = '#fff7ec';
+    ctx.font = '700 28px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Press ENTER', VIEW_W / 2, by + bh / 2 + 1);
+  }
+
+  // The start button's rectangle, shared by the draw and the tap hit-test so they
+  // can't drift. Sits low on the instructions card.
+  function instructionsButtonRect() {
+    const ph = 340, py = (VIEW_H - ph) / 2;
+    const bw = 240, bh = 50;
+    return [VIEW_W / 2 - bw / 2, py + ph - 58, bw, bh]; // low on the card, clear of the SPACE row
   }
 
   // A flat, thick-outlined keycap. `label` is centred; `w` widens it (for space).
