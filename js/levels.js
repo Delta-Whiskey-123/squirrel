@@ -54,6 +54,21 @@ function drawExpertPreview(ctx, x, y, w, h) {
   drawCoin(ctx, x + w * 0.845, y + h * 0.18 - 9, 7, 'A');        // gold high (the challenge)
 }
 
+// Test Lab — a mechanics sandbox card: water, a teal moving platform, and spikes.
+function drawTestPreview(ctx, x, y, w, h) {
+  ctx.fillStyle = '#96c8f2'; ctx.fillRect(x, y, w, h);
+  const gy = y + h * 0.72;
+  ctx.fillStyle = '#8a5a2b'; ctx.fillRect(x, gy, w, h - (gy - y));
+  ctx.fillStyle = '#5bbf4a'; ctx.fillRect(x, gy, w, Math.max(5, h * 0.09));
+  const grassH = Math.max(5, h * 0.09);
+  ctx.fillStyle = 'rgba(74,160,214,0.7)'; ctx.fillRect(x + w * 0.10, gy + grassH, w * 0.30, h * 0.12); // recessed water pool (below the grass line, contained)
+  ctx.fillStyle = '#59c6d6'; ctx.fillRect(x + w * 0.17, y + h * 0.42, w * 0.20, 6);                    // solid blue moving platform (no brown underside)
+  ctx.strokeStyle = '#2f2233'; ctx.lineWidth = 1; ctx.strokeRect(x + w * 0.17, y + h * 0.42, w * 0.20, 6);
+  ctx.fillStyle = '#9aa3ad'; ctx.strokeStyle = '#3a3f45'; ctx.lineWidth = 1.5;                          // spikes
+  for (let i = 0; i < 4; i++) { const sx = x + w * 0.60 + i * (w * 0.075); ctx.beginPath(); ctx.moveTo(sx, gy); ctx.lineTo(sx + w * 0.037, gy - h * 0.12); ctx.lineTo(sx + w * 0.075, gy); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  drawCoin(ctx, x + w * 0.82, y + h * 0.28, 6, 'A');
+}
+
 // Placeholder — a neutral panel with a big question mark, for the empty slots.
 function drawComingSoonPreview(ctx, x, y, w, h) {
   ctx.fillStyle = '#cdd5e0'; ctx.fillRect(x, y, w, h);
@@ -70,5 +85,5 @@ const LEVELS = [
   { id: 3, displayName: 'Level 3',  theme: 'tba',      unlocked: false, blurb: 'Coming soon',   preview: drawComingSoonPreview },
   { id: 4, displayName: 'Level 4',  theme: 'tba',      unlocked: false, blurb: 'Coming soon',   preview: drawComingSoonPreview },
   { id: 5, displayName: 'Level 5',  theme: 'tba',      unlocked: false, blurb: 'Coming soon',   preview: drawComingSoonPreview },
-  { id: 6, displayName: 'Level 6',  theme: 'tba',      unlocked: false, blurb: 'Coming soon',   preview: drawComingSoonPreview },
+  { id: 6, displayName: 'Test Lab', theme: 'training', unlocked: true,  blurb: 'Sandbox · WIP mechanics', preview: drawTestPreview },
 ];

@@ -64,6 +64,36 @@ const EXPERT_PLATS = [
   [11040, -220, 80, 'plat', 'B'], [11260, 40, 100, 'plat', 'C'], [11340, 200, 110, 'plat', 'C'],
 ];
 
+// --- Test Lab (id 6): a throwaway mechanics sandbox in the final roster slot. ---
+const TEST_RIGHT_X = 42;                         // 3276px — short test bench
+// Flat ground, except the water-crossing zone (X~15–29): grass banks are raised
+// to 458 flanking each pool. The pools themselves are left as OPEN gaps (no solid
+// shelf — that would let you stand at the waterline and walk across), so the only
+// footing there is the base floor at 521, which the water rect fully submerges.
+// The result: water sits in a recessed basin below the surrounding banks, and it
+// still works as a hazard — anything dropping into the pool overlaps the water.
+const TEST_PROFILE = [
+  [0, 521], [1080, 458], [1180, 521], [1480, 458], [1650, 521], [2100, 458], [2240, 521], [3276, 521],
+];
+
+// Static geometry: [x, surfaceY, w, kind, coin?]  kind: 'plat' | 'plank' (bridge).
+// Laid out as left->right stations: plank bridge, water crossing, moving-platform
+// ride (to a high gold coin), then a spikes + patrolling-hazard obstacle run.
+const TEST_PLATS = [
+  // Station 1 — plank bridge (a raised walkway; falling off just drops to the floor)
+  [320, 455, 96, 'plank'], [416, 455, 96, 'plank', 'C'], [512, 455, 96, 'plank'],
+  [608, 455, 96, 'plank', 'C'], [704, 455, 96, 'plank'], [800, 455, 96, 'plank'],
+  // Station 2 — water crossing: a rock stepping-stone mid-pit
+  [1300, 430, 74, 'plat', 'B'],
+  // Station 3 — moving-platform ride: a start ledge, then the ferry carries you to
+  // the vertical lift. (No landing ledge under the ferry's right end — the ferry
+  // sweeps through that space, so a ledge there would collide with it.)
+  [1540, 430, 96, 'plat'], [2260, 230, 120, 'plat', 'A'],
+  [2400, 330, 90, 'plat'], [2540, 430, 90, 'plat'],
+  // Station 4 — obstacles: a hop-stone over the spikes
+  [2720, 440, 80, 'plat', 'C'],
+];
+
 // Active terrain profile, swapped by load() so profileTopAt / terrain / pebbles
 // all follow the currently-loaded level.
 let PROFILE = TRAINING_PROFILE;
@@ -102,6 +132,8 @@ class Level {
     this.solids = [];
     this.springs = [];
     this.gems = [];
+    this.hazards = [];                   // water/spike rects (empty = old behaviour) — see hazardAt
+    this.movers = [];                    // moving platforms + moving hazards — see updateMovers
     this.load(1);                        // build a default world so the player has a valid spawn/bounds
   }
 
@@ -130,6 +162,8 @@ class Level {
     this.solids = [];
     this.springs = [];
     this.gems = [];
+    this.hazards = [];
+    this.movers = [];
     this.doorOpen = 0;
     if (this.id === 2) {
       PROFILE = EXPERT_PROFILE;
@@ -139,6 +173,14 @@ class Level {
       this.exitDoorX = 11556;                     // just before the X151 right wall
       this._buildExpert();
       this._buildExpertGems();
+    } else if (this.id === 6) {
+      PROFILE = TEST_PROFILE;
+      this.rightWall = TEST_RIGHT_X * X_UNIT;     // 3276
+      this.pixelW = this.rightWall;
+      this.spawn = { x: 120, y: this.floorTopY - TILE };
+      this.exitDoorX = 3120;                      // just before the sandbox's right wall
+      this._buildTest();
+      this._buildTestGems();
     } else {
       PROFILE = TRAINING_PROFILE;
       this.rightWall = RIGHT_X * X_UNIT;          // 7878
@@ -171,6 +213,113 @@ class Level {
   _buildExpertGems() {
     for (const [x, y, w, , coin] of EXPERT_PLATS) {
       this.gems.push({ x: x + w / 2, y: y - 26, tier: coin, taken: false });
+    }
+  }
+
+  // --- Test Lab (id 6): mechanics sandbox. Static geometry from TEST_PLATS plus
+  //     hazards (water/spikes) and movers (moving platforms + a patrolling saw). ---
+  _buildTest() {
+    for (let i = 0; i < PROFILE.length - 1; i++) {
+      const [x, top] = PROFILE[i];
+      const nx = PROFILE[i + 1][0];
+      if (top < FLOOR_TOP_Y) this.solids.push({ x, y: top, w: nx - x, h: FLOOR_TOP_Y - top, kind: 'terrain' });
+    }
+    for (const [x, y, w, kind] of TEST_PLATS) {
+      this.solids.push({ x, y, w, h: kind === 'plank' ? 12 : 18, kind, oneway: true });
+    }
+    // Static hazards: two water pools and a ground spike strip. Touching any of
+    // these triggers the player's existing gentle respawn (see player.update).
+    this.hazards.push({ x: 1180, y: 475, w: 300, h: 85, kind: 'water' });
+    this.hazards.push({ x: 1650, y: 475, w: 450, h: 85, kind: 'water' });
+    this.hazards.push({ x: 2660, y: 498, w: 150, h: 24, kind: 'spike' });
+    // Moving platforms carry the rider: one horizontal ferry, one vertical lift.
+    this._addMover({ x: 1640, y: 430, w: 110, h: 18, oneway: true, kind: 'mover', mover: true },
+      { x: 1640, y: 430 }, { x: 1980, y: 430 }, 70, false);
+    this._addMover({ x: 2120, y: 430, w: 100, h: 18, oneway: true, kind: 'mover', mover: true },
+      { x: 2120, y: 430 }, { x: 2120, y: 230 }, 60, false);
+    // A patrolling buzzsaw hazard to dodge (moves, but isn't landable).
+    this._addMover({ x: 2860, y: 452, w: 40, h: 40, kind: 'saw' },
+      { x: 2860, y: 452 }, { x: 3000, y: 452 }, 130, true);
+    this._assertNoMoverOverlap();
+  }
+
+  // Dev guard: a solid moving platform must never sweep through a static platform.
+  // Landing collision can't cleanly resolve a rider that a mover has pushed inside
+  // another solid, so overlaps read as the platform "eating" the other one. Warns
+  // (loudly, once, at build time) if a future layout edit reintroduces one — that
+  // is what keeps blue and green platforms from colliding again.
+  _assertNoMoverOverlap() {
+    const moverRects = new Set(this.movers.map(m => m.rect));
+    for (const m of this.movers) {
+      if (m.isHazard) continue;                       // saw etc. aren't landable platforms
+      const r = m.rect;
+      const sx0 = Math.min(m.a.x, m.b.x), sx1 = Math.max(m.a.x, m.b.x) + r.w;
+      const sy0 = Math.min(m.a.y, m.b.y), sy1 = Math.max(m.a.y, m.b.y) + r.h;
+      for (const o of this.solids) {
+        if (o.kind === 'terrain' || moverRects.has(o)) continue;
+        if (sx0 < o.x + o.w && sx1 > o.x && sy0 < o.y + o.h && sy1 > o.y) {
+          console.warn(`[Test Lab] moving platform (travel ${m.a.x},${m.a.y}→${m.b.x},${m.b.y}) sweeps through a '${o.kind}' platform at ${o.x},${o.y} — they will collide. Move one apart.`);
+        }
+      }
+    }
+  }
+
+  _buildTestGems() {
+    for (const [x, y, w, , coin] of TEST_PLATS) {
+      if (coin) this.gems.push({ x: x + w / 2, y: y - 26, tier: coin, taken: false });
+    }
+    // A couple of temptation coins hovering over hazards.
+    this.gems.push({ x: 1330, y: 430, tier: 'C', taken: false }); // over the station-2 water
+    this.gems.push({ x: 2735, y: 454, tier: 'B', taken: false }); // over the spikes
+  }
+
+  // Register a mover. Solid movers (platforms) join `solids` so collision sees
+  // them; hazard movers join `hazards` so hazardAt() sees them. Either way the
+  // same rect object is what updateMovers() repositions each step.
+  _addMover(rect, a, b, speed, isHazard) {
+    const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    rect.vertical = Math.abs(b.y - a.y) > Math.abs(b.x - a.x);  // travel axis, for direction chevrons
+    this.movers.push({ rect, a, b, step: speed / dist, p: 0, dir: 1, isHazard });
+    if (isHazard) this.hazards.push(rect); else this.solids.push(rect);
+  }
+
+  // Does the box overlap any hazard (water, spikes, moving saw)? Empty on the
+  // real levels, so this is a no-op there.
+  hazardAt(box) {
+    for (const h of this.hazards) if (overlaps(box, h)) return true;
+    return false;
+  }
+
+  // Is the box standing on top of a (solid) moving platform? Used so landing on a
+  // mover does NOT become the respawn point (which would drift out from under you).
+  standingOnMover(box) {
+    const feet = box.y + box.h;
+    for (const m of this.movers) {
+      if (m.isHazard) continue;
+      const r = m.rect;
+      if (box.x + box.w > r.x && box.x < r.x + r.w && Math.abs(feet - r.y) <= 6) return true;
+    }
+    return false;
+  }
+
+  // Advance every mover along its ping-pong path (called before player collision),
+  // and carry a rider standing on a solid mover by the same per-step delta.
+  updateMovers(dt, player) {
+    for (const m of this.movers) {
+      const r = m.rect;
+      const ox = r.x, oy = r.y;
+      m.p += m.dir * m.step * dt;
+      if (m.p >= 1) { m.p = 1; m.dir = -1; }
+      else if (m.p <= 0) { m.p = 0; m.dir = 1; }
+      r.x = m.a.x + (m.b.x - m.a.x) * m.p;
+      r.y = m.a.y + (m.b.y - m.a.y) * m.p;
+      if (m.isHazard || !player || player.respawnTimer > 0) continue;
+      const dx = r.x - ox, dy = r.y - oy;
+      if (!dx && !dy) continue;
+      const feet = player.y + player.h;                       // riding = feet on the mover's old top
+      if (player.x + player.w > ox && player.x < ox + r.w && Math.abs(feet - oy) <= 6) {
+        player.x += dx; player.y += dy;                       // carry the rider
+      }
     }
   }
 
@@ -267,8 +416,10 @@ class Level {
     this._drawFloor(ctx, camX, camY, viewW, viewH);
     for (const r of this.solids) if (r.kind === 'terrain') this._drawTerrain(ctx, r, camX, camY);
     this._drawPebbles(ctx, camX, camY, viewW, viewH);
+    this._drawHazards(ctx, camX, camY, 'water');   // water pools sit behind the platforms
     for (const r of this.solids) if (r.kind !== 'terrain') this._drawPlatform(ctx, r, camX, camY);
     for (const s of this.springs) this._drawSpring(ctx, s.x + s.w / 2, s.y - camY, camX);
+    this._drawHazards(ctx, camX, camY, 'front');   // spikes + patrolling saw sit in front
     this._drawGems(ctx, camX, camY);
     this._drawExit(ctx, camX, camY);
     this._drawBoundary(ctx, camX, camY, viewH);
@@ -449,12 +600,74 @@ class Level {
 
   _drawPlatform(ctx, r, camX, camY) {
     const x = r.x - camX, y = r.y - camY;
-    const grass = r.kind === 'launch' ? '#e0912a' : (r.kind === 'high' ? '#8fd66b' : '#5bbf4a');
+    // Bridge plank: a plain wooden board with slats and no grass cap.
+    if (r.kind === 'plank') {
+      ctx.fillStyle = '#b07b3e';
+      this._round(ctx, x, y, r.w, r.h, 3); ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = '#5b3d1c'; ctx.stroke();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(91,61,28,0.5)';
+      for (let sx = x + 14; sx < x + r.w - 6; sx += 16) { ctx.beginPath(); ctx.moveTo(sx, y + 2); ctx.lineTo(sx, y + r.h - 2); ctx.stroke(); }
+      return;
+    }
+    // Moving platform: a solid blue slab — no brown underside, no grass cap — so it
+    // reads as a distinct floating mover rather than a chunk of terrain. A pair of
+    // chevrons, centred on the slab, point along its travel axis: left/right for a
+    // horizontal ferry, up/down for a vertical lift.
+    if (r.kind === 'mover') {
+      ctx.fillStyle = '#59c6d6';
+      this._round(ctx, x, y, r.w, r.h, 7); ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+      // Two separate filled direction triangles pointing along the travel axis —
+      // ▲ + ▼ for a vertical lift, ◀ + ▶ for a horizontal ferry. Kept apart (a
+      // clear gap between them) so each reads as its own arrowhead, not a diamond.
+      ctx.fillStyle = 'rgba(20,60,70,0.75)';
+      const cy = y + r.h / 2, cx = x + r.w / 2;
+      const tri = (ax, ay, bx, by, cx2, cy2) => { ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.lineTo(cx2, cy2); ctx.closePath(); ctx.fill(); };
+      if (r.vertical) {
+        tri(cx, cy - 7, cx - 5, cy - 2, cx + 5, cy - 2);   // ▲ up
+        tri(cx, cy + 7, cx - 5, cy + 2, cx + 5, cy + 2);   // ▼ down
+      } else {
+        tri(cx - 12, cy, cx - 6, cy - 5, cx - 6, cy + 5);  // ◀ left
+        tri(cx + 12, cy, cx + 6, cy - 5, cx + 6, cy + 5);  // ▶ right
+      }
+      return;
+    }
+    const grass = r.kind === 'launch' ? '#e0912a' : r.kind === 'high' ? '#8fd66b' : '#5bbf4a';
     ctx.fillStyle = '#8a5a2b';
     this._round(ctx, x, y, r.w, r.h, 7); ctx.fill();
     ctx.lineWidth = 3; ctx.strokeStyle = '#2f2233'; ctx.stroke();
     ctx.fillStyle = grass;
     this._round(ctx, x + 2, y + 2, r.w - 4, 7, 3); ctx.fill();
+  }
+
+  // Water pools (back layer), spike strips and the patrolling saw (front layer).
+  _drawHazards(ctx, camX, camY, layer) {
+    for (const h of this.hazards) {
+      const x = h.x - camX, y = h.y - camY;
+      if (layer === 'water' && h.kind === 'water') {
+        ctx.fillStyle = 'rgba(74,160,214,0.55)'; ctx.fillRect(x, y, h.w, h.h);
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i <= h.w; i += 12) { const yy = y + 3 + Math.sin((h.x + i) * 0.06) * 2; if (i === 0) ctx.moveTo(x + i, yy); else ctx.lineTo(x + i, yy); }
+        ctx.stroke();
+      } else if (layer === 'front' && h.kind === 'spike') {
+        ctx.fillStyle = '#9aa3ad'; ctx.strokeStyle = '#3a3f45'; ctx.lineWidth = 2;
+        for (let sx = x; sx < x + h.w - 2; sx += 18) {
+          ctx.beginPath(); ctx.moveTo(sx, y + h.h); ctx.lineTo(sx + 9, y); ctx.lineTo(sx + 18, y + h.h); ctx.closePath();
+          ctx.fill(); ctx.stroke();
+        }
+      }
+    }
+    if (layer !== 'front') return;
+    for (const m of this.movers) {
+      if (!m.isHazard) continue;
+      const r = m.rect, cx = r.x + r.w / 2 - camX, cy = r.y + r.h / 2 - camY, rad = r.w / 2;
+      ctx.fillStyle = '#e0483a'; ctx.strokeStyle = '#7a2418'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2, rr = i % 2 ? rad : rad * 0.7; const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr; if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff2ec'; ctx.beginPath(); ctx.arc(cx, cy, rad * 0.28, 0, 7); ctx.fill();
+    }
   }
 
   _drawSpring(ctx, cx, topY, camX) {
