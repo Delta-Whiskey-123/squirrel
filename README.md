@@ -56,11 +56,13 @@ same item confirms it and moves on. The start screen's **Press ENTER** button
 and the Settings switches act on a single tap.
 
 **Settings** live behind the pause menu's middle button (a two-cog ⚙ icon, where
-Mute used to be) and hold two switches — **Touch zones** and **Sound** — plus
-Back. Turning **Touch zones** on shows a mostly-transparent guide across the
-lower fifth of the screen (◀ move left, ▶ move right, ▲ jump) that mirrors the
-real input split. It's off by default, remembered between sessions, and purely a
-visual aid — the input zones themselves stay full-height.
+Mute used to be) and hold three switches — **Touch zones**, **Invert controls**,
+and **Sound** — plus Back. Turning **Touch zones** on shows a mostly-transparent
+guide across the lower fifth of the screen (◀ move left, ▶ move right, ▲ jump)
+that mirrors the real input split. **Invert controls** swaps the sides — jump on
+the left, movement on the right (mirrored, so the outer edge still means "move
+that way"). All are off/remembered between sessions; the touch-zone guide is
+purely visual — the input zones themselves stay full-height.
 
 > Phones need the game **served over HTTP(S)** (a phone can't open a file on your
 > PC). Any static host works — GitHub Pages, Netlify, Cloudflare Pages.
@@ -192,8 +194,11 @@ levels are next.
   priority over the jump zone. The Settings switches and the start-screen button
   act on a **single tap**.
 - **Settings panel** — the pause menu's middle button is now a two-cog **Settings**
-  icon (replacing the old Mute button). It opens a panel with **Touch zones** and
-  **Sound** switches plus a Back button.
+  icon (replacing the old Mute button). It opens a panel with **Touch zones**,
+  **Invert controls**, and **Sound** switches plus a Back button.
+- **Invert controls** — swaps the touch sides (jump on the left, movement on the
+  right, mirrored). Off by default, remembered in `localStorage`; the input map
+  and the zone overlay both follow it.
 - **Touch-zone guide overlay** — a mostly-transparent map across the lower fifth
   of the screen (◀ / ▶ / ▲) mirroring the live input split. Off by default,
   remembered in `localStorage`, toggled from Settings; the input zones stay

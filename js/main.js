@@ -64,6 +64,16 @@
     try { localStorage.setItem('squirrel.zones', zonesOn ? '1' : '0'); } catch (e) {}
   }
 
+  // Swap the touch sides: off (default) = move on the left, jump on the right;
+  // on = jump on the left, move on the right (mirrored, so the screen's outer
+  // edge still means "move that way"). Persists like the other settings.
+  let invertControls = false;
+  try { invertControls = localStorage.getItem('squirrel.invert') === '1'; } catch (e) {}
+  function setInvertControls(v) {
+    invertControls = !!v;
+    try { localStorage.setItem('squirrel.invert', invertControls ? '1' : '0'); } catch (e) {}
+  }
+
   // Badge art for the end screen. Loaded from disk; if it can't be found we draw
   // a simple placeholder instead and log where we looked — never crash.
   const BADGE_PATH = 'Tiles/Assets/badge.png';
@@ -261,15 +271,16 @@
       return;
     }
     if (screen === 'settings') {
-      const SCOUNT = 3; // Touch zones, Sound, Back
+      const SCOUNT = 4; // Touch zones, Swap sides, Sound, Back
       if (UP(e.code) || LEFT(e.code))    { e.preventDefault(); settingsIndex = (settingsIndex + SCOUNT - 1) % SCOUNT; Sfx.move(); }
       else if (DOWN(e.code) || RIGHT(e.code)) { e.preventDefault(); settingsIndex = (settingsIndex + 1) % SCOUNT; Sfx.move(); }
       else if (BACK(e.code)) { e.preventDefault(); Sfx.back(); screen = 'pausemenu'; }
       else if (CONFIRM(e.code)) {
         e.preventDefault();
-        if (settingsIndex === 0) { setZonesOn(!zonesOn); Sfx.confirm(); }   // toggle the touch-zone guide
-        else if (settingsIndex === 1) { Sfx.toggleMute(); }                 // toggle sound (mute)
-        else { Sfx.back(); screen = 'pausemenu'; }                          // Back to pause
+        if (settingsIndex === 0) { setZonesOn(!zonesOn); Sfx.confirm(); }        // toggle the touch-zone guide
+        else if (settingsIndex === 1) { setInvertControls(!invertControls); Sfx.confirm(); } // swap sides
+        else if (settingsIndex === 2) { Sfx.toggleMute(); }                     // toggle sound (mute)
+        else { Sfx.back(); screen = 'pausemenu'; }                              // Back to pause
       }
       return;
     }
@@ -389,9 +400,15 @@
   function inRect(p, x, y, w, h) { return p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h; }
 
   // Which gameplay code a buffer point maps to during play (null = none).
+  // Honours the Swap-sides setting: default = move left / jump right; inverted =
+  // jump left / move right (mirrored, so the outer edge still means "that way").
   function gameplayCodeAt(p) {
-    if (p.x >= HALF_X) return 'Space';                 // right half = jump
-    return p.x < MOVE_SUB_X ? 'ArrowLeft' : 'ArrowRight'; // left half = move (outer/inner)
+    if (invertControls) {
+      if (p.x < HALF_X) return 'Space';                        // left half = jump
+      return p.x >= VIEW_W - MOVE_SUB_X ? 'ArrowRight' : 'ArrowLeft'; // right half = move (outer/inner)
+    }
+    if (p.x >= HALF_X) return 'Space';                         // right half = jump
+    return p.x < MOVE_SUB_X ? 'ArrowLeft' : 'ArrowRight';      // left half = move (outer/inner)
   }
 
   // Reconcile Input with the union of all active gameplay pointers. pressCode /
@@ -445,17 +462,18 @@
     return [0, 1, 2].map((i) => ({ index: i, rect: [startX + i * (bw + gap), by, bw, bh] }));
   }
 
-  // Settings panel: two full-width toggle rows (Touch zones, Sound) plus a Back
-  // button. Single geometry source, shared by draw + hit-test. SETTINGS_PANEL is
-  // the card the rows sit inside.
-  const SETTINGS_PANEL = { pw: 560, ph: 300, px: (VIEW_W - 560) / 2, py: (VIEW_H - 300) / 2 };
+  // Settings panel: three full-width toggle rows (Touch zones, Swap sides, Sound)
+  // plus a Back button. Single geometry source, shared by draw + hit-test.
+  // SETTINGS_PANEL is the card the rows sit inside.
+  const SETTINGS_PANEL = { pw: 560, ph: 320, px: (VIEW_W - 560) / 2, py: (VIEW_H - 320) / 2 };
   function settingsTargets() {
     const { px, py, pw } = SETTINGS_PANEL;
-    const rx = px + 40, rw = pw - 80, rh = 52;
+    const rx = px + 40, rw = pw - 80, rh = 48;
     return [
-      { index: 0, rect: [rx, py + 82, rw, rh] },          // Touch zones
-      { index: 1, rect: [rx, py + 144, rw, rh] },         // Sound
-      { index: 2, rect: [VIEW_W / 2 - 80, py + 220, 160, 44] }, // Back
+      { index: 0, rect: [rx, py + 70, rw, rh] },           // Touch zones
+      { index: 1, rect: [rx, py + 126, rw, rh] },          // Swap sides
+      { index: 2, rect: [rx, py + 182, rw, rh] },          // Sound
+      { index: 3, rect: [VIEW_W / 2 - 80, py + 252, 160, 44] }, // Back
     ];
   }
 
@@ -827,9 +845,9 @@
     ctx.fillStyle = holeColor; ctx.fill(); ctx.lineWidth = 1.5; ctx.stroke();
   }
 
-  // The Settings panel (opened from the pause menu). Two toggle rows — Touch
-  // zones and Sound — plus a Back button. Up/Down (or Left/Right) moves the
-  // focus, Space/Enter flips a toggle or backs out, Escape/Backspace goes back.
+  // The Settings panel (opened from the pause menu). Three toggle rows — Touch
+  // zones, Swap sides, Sound — plus a Back button. Up/Down (or Left/Right) moves
+  // the focus, Space/Enter flips a toggle or backs out, Escape/Backspace backs.
   function drawSettings() {
     ctx.fillStyle = 'rgba(20,10,40,0.55)';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -841,12 +859,13 @@
 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#e8622c'; ctx.font = '700 40px system-ui, sans-serif';
-    ctx.fillText('Settings', VIEW_W / 2, py + 46);
+    ctx.fillText('Settings', VIEW_W / 2, py + 40);
 
     const t = settingsTargets();
     drawSettingRow(t[0].rect, 'Touch zones', zonesOn, settingsIndex === 0);
-    drawSettingRow(t[1].rect, 'Sound', !Sfx.isMuted(), settingsIndex === 1);
-    drawBackButton(t[2].rect, settingsIndex === 2);
+    drawSettingRow(t[1].rect, 'Invert controls', invertControls, settingsIndex === 1);
+    drawSettingRow(t[2].rect, 'Sound', !Sfx.isMuted(), settingsIndex === 2);
+    drawBackButton(t[3].rect, settingsIndex === 3);
   }
 
   // A settings row: a full-width cap with a left-aligned label and an on/off
@@ -896,28 +915,35 @@
   }
 
   // The touch-zone guide: a mostly-transparent band across the lower fifth of the
-  // screen, split exactly like the live input — left-outer moves left (◀),
-  // left-inner moves right (▶), right half jumps (▲). Purely a visual aid; the
-  // real input zones remain full-height.
+  // screen, split exactly like the live input and honouring the Swap-sides
+  // setting — default is move-left (◀) · move-right (▶) · jump (▲); inverted is
+  // jump (▲) · move-left (◀) · move-right (▶). Purely a visual aid; the real
+  // input zones remain full-height.
   function drawZoneOverlay() {
-    const y0 = VIEW_H * 0.8, h = VIEW_H - y0;
+    const y0 = VIEW_H * 0.8, h = VIEW_H - y0, outer = VIEW_W - MOVE_SUB_X;
+    const regions = invertControls
+      ? [[0, HALF_X, 'up'], [HALF_X, outer, 'left'], [outer, VIEW_W, 'right']]
+      : [[0, MOVE_SUB_X, 'left'], [MOVE_SUB_X, HALF_X, 'right'], [HALF_X, VIEW_W, 'up']];
     ctx.save();
-    // Faint region tints.
-    ctx.fillStyle = 'rgba(47,34,51,0.10)'; ctx.fillRect(0, y0, MOVE_SUB_X, h);                 // move left
-    ctx.fillStyle = 'rgba(47,34,51,0.06)'; ctx.fillRect(MOVE_SUB_X, y0, HALF_X - MOVE_SUB_X, h); // move right
-    ctx.fillStyle = 'rgba(47,34,51,0.10)'; ctx.fillRect(HALF_X, y0, VIEW_W - HALF_X, h);        // jump
-    // Top edge + dashed dividers matching the input split.
+    // Faint region tints (middle region a touch lighter).
+    for (let i = 0; i < regions.length; i++) {
+      const [x0, x1] = regions[i];
+      ctx.fillStyle = i === 1 ? 'rgba(47,34,51,0.06)' : 'rgba(47,34,51,0.10)';
+      ctx.fillRect(x0, y0, x1 - x0, h);
+    }
+    // Top edge.
     ctx.strokeStyle = 'rgba(47,34,51,0.22)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(VIEW_W, y0); ctx.stroke();
+    // Dashed dividers at the two interior boundaries.
     ctx.setLineDash([7, 7]); ctx.strokeStyle = 'rgba(47,34,51,0.28)';
-    ctx.beginPath(); ctx.moveTo(MOVE_SUB_X, y0); ctx.lineTo(MOVE_SUB_X, VIEW_H); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(HALF_X, y0); ctx.lineTo(HALF_X, VIEW_H); ctx.stroke();
+    for (let i = 1; i < regions.length; i++) {
+      const bx = regions[i][0];
+      ctx.beginPath(); ctx.moveTo(bx, y0); ctx.lineTo(bx, VIEW_H); ctx.stroke();
+    }
     ctx.setLineDash([]);
     // Direction arrows, centred in each region.
     const cy = y0 + h / 2;
-    drawZoneArrow(MOVE_SUB_X / 2, cy, 'left');
-    drawZoneArrow(MOVE_SUB_X + (HALF_X - MOVE_SUB_X) / 2, cy, 'right');
-    drawZoneArrow(HALF_X + (VIEW_W - HALF_X) / 2, cy, 'up');
+    for (const [x0, x1, arrow] of regions) drawZoneArrow((x0 + x1) / 2, cy, arrow);
     ctx.restore();
   }
 
