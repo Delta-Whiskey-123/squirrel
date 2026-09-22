@@ -15,10 +15,16 @@
 
 const TILE = Physics.TILE; // 48
 
+const VIEW_W = 960;                                   // camera view width (matches main.js)
 const VIEW_H = 540;
 const FLOOR_TOP_Y = Math.round(VIEW_H - 0.40 * TILE); // 521 — base ground surface
 const EDGE_LINE = 2.2;                                 // dark outline weight on ground edges
 const X_UNIT = 78;                                    // world px per grid X-unit
+
+// Spawn X so the character's centre lands on screen-centre at level start (the
+// camera clamps to the left edge, so cx = VIEW_W/2 puts it dead-centre). Shared
+// by every level. The starts are flat ground here, so it spawns cleanly.
+const SPAWN_X = Math.round(VIEW_W / 2 - TILE / 2);    // 456
 const RIGHT_X = 101;                                  // Training: playable area confined to X101
 const EXPERT_RIGHT_X = 151;                           // Woodland Expert: 50% longer (X151, 11778px)
 
@@ -169,7 +175,7 @@ class Level {
       PROFILE = EXPERT_PROFILE;
       this.rightWall = EXPERT_RIGHT_X * X_UNIT;   // 11778
       this.pixelW = this.rightWall;
-      this.spawn = { x: 120, y: this.floorTopY - TILE };
+      this.spawn = { x: SPAWN_X, y: this.floorTopY - TILE };
       this.exitDoorX = 11556;                     // just before the X151 right wall
       this._buildExpert();
       this._buildExpertGems();
@@ -177,7 +183,7 @@ class Level {
       PROFILE = TEST_PROFILE;
       this.rightWall = TEST_RIGHT_X * X_UNIT;     // 3276
       this.pixelW = this.rightWall;
-      this.spawn = { x: 120, y: this.floorTopY - TILE };
+      this.spawn = { x: SPAWN_X, y: this.floorTopY - TILE };
       this.exitDoorX = 3120;                      // just before the sandbox's right wall
       this._buildTest();
       this._buildTestGems();
@@ -185,7 +191,7 @@ class Level {
       PROFILE = TRAINING_PROFILE;
       this.rightWall = RIGHT_X * X_UNIT;          // 7878
       this.pixelW = this.rightWall;
-      this.spawn = { x: 120, y: this.floorTopY - TILE };
+      this.spawn = { x: SPAWN_X, y: this.floorTopY - TILE };
       this.exitDoorX = 7656;
       this._build();
       this._buildGems();

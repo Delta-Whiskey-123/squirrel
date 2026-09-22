@@ -98,6 +98,7 @@ const Input = (function () {
     jumpHeld = false;
     jumpBuffer = 0;
     sprintDir = 0;
+    joyAxis = 0;
     tap['-1'].win = tap['1'].win = 0;
     tap['-1'].released = tap['1'].released = false;
   }
@@ -125,6 +126,17 @@ const Input = (function () {
     return (r ? 1 : 0) - (l ? 1 : 0);
   }
 
+  // Analog horizontal axis for the on-screen joystick: a signed magnitude in
+  // [-1, 1] (quantised to gear steps by the caller). Keyboard / d-pad taps take
+  // priority — they read as a full ±1 — so nothing changes when the joystick is
+  // idle or unused; otherwise the joystick's value drives movement.
+  let joyAxis = 0;
+  function setJoyAxis(v) { joyAxis = Math.max(-1, Math.min(1, v || 0)); }
+  function moveAxis() {
+    const k = moveX();
+    return k !== 0 ? k : joyAxis;
+  }
+
   // True if a buffered jump is available to consume.
   function jumpQueued() { return jumpBuffer > 0; }
 
@@ -138,7 +150,7 @@ const Input = (function () {
 
   return {
     attach, update, clearAll,
-    moveX,
+    moveX, moveAxis, setJoyAxis,
     jumpQueued, consumeJump,
     sprintHeld, setDoubleTapWindow,
     pressCode, releaseCode,

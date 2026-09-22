@@ -74,6 +74,38 @@
     try { localStorage.setItem('squirrel.invert', invertControls ? '1' : '0'); } catch (e) {}
   }
 
+  // Analogue joystick (a smoked-glass "gear stick") for movement. Off by default;
+  // when on it replaces tap-to-move on the movement side (jump + Menu unchanged).
+  // Grab the stick and drag left/right: distance from centre picks one of 4 hidden
+  // gears (¼…1 of top speed); release snaps back to centre = stop.
+  let joystickOn = false;
+  try { joystickOn = localStorage.getItem('squirrel.joystick') === '1'; } catch (e) {}
+  // Live joystick state: which pointer holds it, and the current knob offset from
+  // the pivot in buffer px (continuous for the visuals; the speed is quantised).
+  let joyGrabPointer = null;
+  let joyOffset = 0;
+  const JOY_L = 135;                              // reach (px) at full flat = ¼ of the 960 view
+  const JOY_C = Math.cos(70 * Math.PI / 180);     // 70° foreshortening ≈ 0.342
+  const JOY_GRAB_R = JOY_L + 45;                  // generous grab radius around the pivot
+  function setJoystickOn(v) {
+    joystickOn = !!v;
+    try { localStorage.setItem('squirrel.joystick', joystickOn ? '1' : '0'); } catch (e) {}
+    if (!joystickOn) { joyGrabPointer = null; joyOffset = 0; Input.setJoyAxis(0); }
+  }
+  // Pivot sits low on the movement side, inset by the sweep length so a full flat
+  // push either way stays on-screen. Movement is on the left by default, right
+  // when Invert controls is on.
+  function joyPivot() { return { x: invertControls ? VIEW_W - 170 : 170, y: 485 }; }
+  // Set the tilt + gear from a grabbed pointer's buffer position.
+  function updateJoyFromPointer(p) {
+    const jp = joyPivot();
+    joyOffset = Math.max(-JOY_L, Math.min(JOY_L, p.x - jp.x));
+    const frac = joyOffset / JOY_L;                     // -1..1 (continuous)
+    const gear = Math.round(Math.abs(frac) * 4);        // 0..4, with a natural centre dead-zone
+    const dir = frac === 0 ? 0 : (frac > 0 ? 1 : -1);
+    Input.setJoyAxis(dir * gear / 4);                   // quantised speed
+  }
+
   // Badge art for the end screen. Loaded from disk; if it can't be found we draw
   // a simple placeholder instead and log where we looked — never crash.
   const BADGE_PATH = 'Tiles/Assets/badge.png';
@@ -271,7 +303,7 @@
       return;
     }
     if (screen === 'settings') {
-      const SCOUNT = 4; // Touch zones, Swap sides, Sound, Back
+      const SCOUNT = 5; // Touch zones, Invert controls, Joystick, Sound, Back
       if (UP(e.code) || LEFT(e.code))    { e.preventDefault(); settingsIndex = (settingsIndex + SCOUNT - 1) % SCOUNT; Sfx.move(); }
       else if (DOWN(e.code) || RIGHT(e.code)) { e.preventDefault(); settingsIndex = (settingsIndex + 1) % SCOUNT; Sfx.move(); }
       else if (BACK(e.code)) { e.preventDefault(); Sfx.back(); screen = 'pausemenu'; }
@@ -279,7 +311,8 @@
         e.preventDefault();
         if (settingsIndex === 0) { setZonesOn(!zonesOn); Sfx.confirm(); }        // toggle the touch-zone guide
         else if (settingsIndex === 1) { setInvertControls(!invertControls); Sfx.confirm(); } // swap sides
-        else if (settingsIndex === 2) { Sfx.toggleMute(); }                     // toggle sound (mute)
+        else if (settingsIndex === 2) { setJoystickOn(!joystickOn); Sfx.confirm(); } // toggle the joystick
+        else if (settingsIndex === 3) { Sfx.toggleMute(); }                     // toggle sound (mute)
         else { Sfx.back(); screen = 'pausemenu'; }                              // Back to pause
       }
       return;
@@ -427,6 +460,7 @@
   function releaseAllTouchGameplay() {
     touchPointers.clear();
     syncTouchGameplay();
+    joyGrabPointer = null; Input.setJoyAxis(0); // drop the joystick too (it eases back)
   }
 
   // --- Menu hit-testing. Each helper returns the tappable targets for its screen
@@ -462,18 +496,19 @@
     return [0, 1, 2].map((i) => ({ index: i, rect: [startX + i * (bw + gap), by, bw, bh] }));
   }
 
-  // Settings panel: three full-width toggle rows (Touch zones, Swap sides, Sound)
-  // plus a Back button. Single geometry source, shared by draw + hit-test.
-  // SETTINGS_PANEL is the card the rows sit inside.
-  const SETTINGS_PANEL = { pw: 560, ph: 320, px: (VIEW_W - 560) / 2, py: (VIEW_H - 320) / 2 };
+  // Settings panel: four full-width toggle rows (Touch zones, Invert controls,
+  // Joystick, Sound) plus a Back button. Single geometry source, shared by draw +
+  // hit-test. SETTINGS_PANEL is the card the rows sit inside.
+  const SETTINGS_PANEL = { pw: 560, ph: 344, px: (VIEW_W - 560) / 2, py: (VIEW_H - 344) / 2 };
   function settingsTargets() {
     const { px, py, pw } = SETTINGS_PANEL;
-    const rx = px + 40, rw = pw - 80, rh = 48;
+    const rx = px + 40, rw = pw - 80, rh = 46;
     return [
-      { index: 0, rect: [rx, py + 70, rw, rh] },           // Touch zones
-      { index: 1, rect: [rx, py + 126, rw, rh] },          // Swap sides
-      { index: 2, rect: [rx, py + 182, rw, rh] },          // Sound
-      { index: 3, rect: [VIEW_W / 2 - 80, py + 252, 160, 44] }, // Back
+      { index: 0, rect: [rx, py + 56, rw, rh] },           // Touch zones
+      { index: 1, rect: [rx, py + 108, rw, rh] },          // Invert controls
+      { index: 2, rect: [rx, py + 160, rw, rh] },          // Joystick
+      { index: 3, rect: [rx, py + 212, rw, rh] },          // Sound
+      { index: 4, rect: [VIEW_W / 2 - 80, py + 280, 160, 44] }, // Back
     ];
   }
 
@@ -541,6 +576,21 @@
         handleKey({ code: 'Escape' });                // open the pause menu
         return;
       }
+      if (joystickOn) {
+        const jump = invertControls ? p.x < HALF_X : p.x >= HALF_X; // jump side unchanged
+        if (jump) { touchPointers.set(e.pointerId, 'Space'); syncTouchGameplay(); return; }
+        // Movement side: grab the stick if the touch lands in its generous zone;
+        // otherwise the tap does nothing (movement is the stick only).
+        const jp = joyPivot(), dx = p.x - jp.x, dy = p.y - jp.y;
+        if (joyGrabPointer === null && dx * dx + dy * dy <= JOY_GRAB_R * JOY_GRAB_R) {
+          joyGrabPointer = e.pointerId;
+          touchPointers.set(e.pointerId, null);
+          updateJoyFromPointer(p);
+        } else {
+          touchPointers.set(e.pointerId, null);
+        }
+        return;
+      }
       touchPointers.set(e.pointerId, gameplayCodeAt(p));
       syncTouchGameplay();
       return;
@@ -569,6 +619,8 @@
 
   function onPointerMove(e) {
     if (screen !== 'playing') return;
+    if (e.pointerId === joyGrabPointer) { updateJoyFromPointer(clientToBuffer(e.clientX, e.clientY)); return; }
+    if (joystickOn) return;                              // other pointers are jump taps; don't re-map
     if (!touchPointers.has(e.pointerId)) return;
     if (touchPointers.get(e.pointerId) === null) return; // Menu-button pointer stays inert
     const code = gameplayCodeAt(clientToBuffer(e.clientX, e.clientY));
@@ -576,6 +628,11 @@
   }
 
   function onPointerUp(e) {
+    if (e.pointerId === joyGrabPointer) {                // released the stick → snap to stop
+      joyGrabPointer = null; Input.setJoyAxis(0);
+      touchPointers.delete(e.pointerId);                 // (joyOffset eases back in the loop)
+      return;
+    }
     if (touchPointers.has(e.pointerId)) { touchPointers.delete(e.pointerId); syncTouchGameplay(); }
   }
 
@@ -602,6 +659,13 @@
     blink += dt;
     if (lockShake > 0) lockShake -= dt;
     if (levelShake > 0) levelShake -= dt;
+
+    // Joystick spring-back: once released, the knob eases home to centre (the
+    // movement already stopped the instant it was let go).
+    if (joyGrabPointer === null && joyOffset !== 0) {
+      joyOffset -= joyOffset * Math.min(1, dt * 18);
+      if (Math.abs(joyOffset) < 0.5) joyOffset = 0;
+    }
 
     // Ambient pollen drifts every frame, on every screen, using the real frame dt
     // (frame-rate independent). Cheap no-op when disabled.
@@ -649,6 +713,7 @@
     // Optional near band reads as "in front" (off by default).
     Particles.drawFront(ctx);
 
+    if (joystickOn && screen === 'playing') drawJoystick();
     if (screen === 'playing' || screen === 'pausemenu') drawHud();
     if (Sfx.isMuted()) drawMuteIcon(screen === 'playing' ? 90 : 0); // dodge the Menu button
     if (screen === 'playing') drawMenuButton();
@@ -859,13 +924,14 @@
 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#e8622c'; ctx.font = '700 40px system-ui, sans-serif';
-    ctx.fillText('Settings', VIEW_W / 2, py + 40);
+    ctx.fillText('Settings', VIEW_W / 2, py + 32);
 
     const t = settingsTargets();
     drawSettingRow(t[0].rect, 'Touch zones', zonesOn, settingsIndex === 0);
     drawSettingRow(t[1].rect, 'Invert controls', invertControls, settingsIndex === 1);
-    drawSettingRow(t[2].rect, 'Sound', !Sfx.isMuted(), settingsIndex === 2);
-    drawBackButton(t[3].rect, settingsIndex === 3);
+    drawSettingRow(t[2].rect, 'Joystick', joystickOn, settingsIndex === 2);
+    drawSettingRow(t[3].rect, 'Sound', !Sfx.isMuted(), settingsIndex === 3);
+    drawBackButton(t[4].rect, settingsIndex === 4);
   }
 
   // A settings row: a full-width cap with a left-aligned label and an on/off
@@ -921,9 +987,12 @@
   // input zones remain full-height.
   function drawZoneOverlay() {
     const y0 = VIEW_H * 0.8, h = VIEW_H - y0, outer = VIEW_W - MOVE_SUB_X;
-    const regions = invertControls
+    let regions = invertControls
       ? [[0, HALF_X, 'up'], [HALF_X, outer, 'left'], [outer, VIEW_W, 'right']]
       : [[0, MOVE_SUB_X, 'left'], [MOVE_SUB_X, HALF_X, 'right'], [HALF_X, VIEW_W, 'up']];
+    // With the joystick on, the movement side is the stick, not tap zones — show
+    // only the jump region so the guide doesn't imply tap-to-move.
+    if (joystickOn) regions = regions.filter((r) => r[2] === 'up');
     ctx.save();
     // Faint region tints (middle region a touch lighter).
     for (let i = 0; i < regions.length; i++) {
@@ -955,6 +1024,33 @@
     else if (dir === 'right') { ctx.moveTo(cx + s, cy); ctx.lineTo(cx - s, cy - s); ctx.lineTo(cx - s, cy + s); }
     else { ctx.moveTo(cx, cy - s); ctx.lineTo(cx - s, cy + s); ctx.lineTo(cx + s, cy + s); }
     ctx.closePath(); ctx.fill();
+  }
+
+  // The movement gear stick: a smoked-glass lever on a round base pad, viewed at
+  // ~70° so the knob arcs and the stick foreshortens as it swings. joyOffset (the
+  // continuous knob offset from the pivot) drives the visuals; the speed it feeds
+  // the game is quantised into 4 hidden gears elsewhere.
+  function drawJoystick() {
+    const jp = joyPivot();
+    const frac = joyOffset / JOY_L;
+    const cosphi = Math.sqrt(Math.max(0, 1 - frac * frac));
+    const kx = jp.x + joyOffset, ky = jp.y - JOY_L * cosphi * JOY_C;
+    ctx.save();
+    ctx.fillStyle = 'rgba(28,20,32,0.18)';               // cast shadow on the pad
+    ctx.beginPath(); ctx.ellipse(kx, jp.y, 16, 5, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(jp.x, jp.y, 24, 22, 0, 0, 7); // base pad
+    ctx.fillStyle = 'rgba(28,20,38,0.28)'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.stroke();
+    ctx.lineCap = 'round';                                // stick
+    ctx.beginPath(); ctx.moveTo(jp.x, jp.y); ctx.lineTo(kx, ky);
+    ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(28,20,38,0.44)'; ctx.stroke();
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.32)'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(kx, ky, 18, 0, 7);           // knob
+    ctx.fillStyle = 'rgba(30,22,42,0.42)'; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(kx - 6, ky - 6, 5, 3.5, 0, 0, 7); // highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+    ctx.restore();
   }
 
   // Level select: a 3x2 grid of level cards over the dimmed world. Arrows move

@@ -131,7 +131,13 @@ class Player {
     }
 
     // --- Horizontal acceleration toward the input direction ---
-    const dir = Input.moveX();
+    // moveAxis() is a signed magnitude: keyboard / d-pad read as a full ±1, while
+    // the on-screen joystick supplies a partial value (its 4 gears = ¼…1 of top
+    // speed). The magnitude scales the ground speed cap so a lower gear tops out
+    // slower; in the air the full cap stands so a running jump keeps its momentum.
+    const axis = Input.moveAxis();
+    const dir = axis === 0 ? 0 : (axis > 0 ? 1 : -1);
+    const mag = Math.min(1, Math.abs(axis));
     let accel;
     if (this.onGround) {
       accel = P.ACCEL;
@@ -145,8 +151,9 @@ class Player {
     if (dir !== 0) {
       this.vx += dir * accel * dt;
       this.facing = dir;
-      if (this.vx >  this.speedCap) this.vx =  this.speedCap;
-      if (this.vx < -this.speedCap) this.vx = -this.speedCap;
+      const cap = this.onGround ? this.speedCap * mag : this.speedCap;
+      if (this.vx >  cap) this.vx =  cap;
+      if (this.vx < -cap) this.vx = -cap;
     } else if (this.onGround) {
       // Friction only bites on the ground so air control stays floaty.
       const fr = P.FRICTION * dt;
