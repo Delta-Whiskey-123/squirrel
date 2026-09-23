@@ -49,7 +49,8 @@
   let selIndex = 0;    // highlighted character in the select row
   let lockShake = 0;   // brief wobble when a locked character is confirmed
   let pauseIndex = 0;  // highlighted button in the pause menu (0 resume, 1 settings, 2 restart)
-  let settingsIndex = 0; // highlighted row in the Settings panel (0 zones, 1 sound, 2 back)
+  let settingsIndex = 0; // highlighted row in the Settings panel (0 zones … 4 home, 5 back)
+  let confirmIndex = 1;  // highlighted button on the "return home?" confirm (0 Yes, 1 No — No is the safe default)
   let gems = { A: 0, B: 0, C: 0 }; // collected count per tier (reset each run)
   let gcState = null;              // end-screen animation state (see startGameComplete)
 
@@ -84,7 +85,7 @@
   // the pivot in buffer px (continuous for the visuals; the speed is quantised).
   let joyGrabPointer = null;
   let joyOffset = 0;
-  const JOY_L = 135;                              // reach (px) at full flat = ¼ of the 960 view
+  const JOY_L = 122;                              // reach (px) at full flat (10% shorter than the 135 draft)
   const JOY_C = Math.cos(70 * Math.PI / 180);     // 70° foreshortening ≈ 0.342
   const JOY_GRAB_R = JOY_L + 45;                  // generous grab radius around the pivot
   function setJoystickOn(v) {
@@ -95,7 +96,7 @@
   // Pivot sits low on the movement side, inset by the sweep length so a full flat
   // push either way stays on-screen. Movement is on the left by default, right
   // when Invert controls is on.
-  function joyPivot() { return { x: invertControls ? VIEW_W - 170 : 170, y: 485 }; }
+  function joyPivot() { return { x: invertControls ? VIEW_W - 232 : 232, y: 485 }; }
   // Set the tilt + gear from a grabbed pointer's buffer position.
   function updateJoyFromPointer(p) {
     const jp = joyPivot();
@@ -141,6 +142,14 @@
   function resumeGame() {
     Input.consumeJump(); // don't let the confirming Space fire a jump on resume
     screen = 'playing';
+  }
+
+  // Abandon the current run and return to the level-select "home" screen. Clears
+  // any held input / joystick so nothing carries over into the menu.
+  function returnHome() {
+    Input.clearAll();
+    joyGrabPointer = null; Input.setJoyAxis(0); joyOffset = 0;
+    screen = 'levelselect';
   }
 
   // --- Dev-only shortcut (to be removed before release) ---
@@ -262,6 +271,7 @@
     // Escape opens/closes the pause menu during play.
     if (e.code === 'Escape') {
       if (screen === 'playing') { e.preventDefault(); pauseIndex = 0; screen = 'pausemenu'; }
+      else if (screen === 'confirmhome') { e.preventDefault(); Sfx.back(); screen = 'settings'; } // cancel = No
       else if (screen === 'settings') { e.preventDefault(); Sfx.back(); screen = 'pausemenu'; } // Settings → pause
       else if (screen === 'pausemenu') { e.preventDefault(); Sfx.back(); resumeGame(); }
       else if (screen === 'select') { e.preventDefault(); Sfx.back(); screen = 'levelselect'; } // back to level select
@@ -303,7 +313,7 @@
       return;
     }
     if (screen === 'settings') {
-      const SCOUNT = 5; // Touch zones, Invert controls, Joystick, Sound, Back
+      const SCOUNT = 6; // Touch zones, Invert controls, Joystick, Sound, Home screen, Back
       if (UP(e.code) || LEFT(e.code))    { e.preventDefault(); settingsIndex = (settingsIndex + SCOUNT - 1) % SCOUNT; Sfx.move(); }
       else if (DOWN(e.code) || RIGHT(e.code)) { e.preventDefault(); settingsIndex = (settingsIndex + 1) % SCOUNT; Sfx.move(); }
       else if (BACK(e.code)) { e.preventDefault(); Sfx.back(); screen = 'pausemenu'; }
@@ -313,7 +323,19 @@
         else if (settingsIndex === 1) { setInvertControls(!invertControls); Sfx.confirm(); } // swap sides
         else if (settingsIndex === 2) { setJoystickOn(!joystickOn); Sfx.confirm(); } // toggle the joystick
         else if (settingsIndex === 3) { Sfx.toggleMute(); }                     // toggle sound (mute)
+        else if (settingsIndex === 4) { Sfx.confirm(); confirmIndex = 1; screen = 'confirmhome'; } // Home screen → confirm
         else { Sfx.back(); screen = 'pausemenu'; }                              // Back to pause
+      }
+      return;
+    }
+    if (screen === 'confirmhome') {
+      const COUNT = 2; // Yes (0), No (1)
+      if (LEFT(e.code) || RIGHT(e.code) || UP(e.code) || DOWN(e.code)) { e.preventDefault(); confirmIndex = (confirmIndex + 1) % COUNT; Sfx.move(); }
+      else if (BACK(e.code)) { e.preventDefault(); Sfx.back(); screen = 'settings'; } // cancel = No
+      else if (CONFIRM(e.code)) {
+        e.preventDefault();
+        if (confirmIndex === 0) { Sfx.confirm(); returnHome(); }   // Yes → home (level select)
+        else { Sfx.back(); screen = 'settings'; }                 // No → back to Settings
       }
       return;
     }
@@ -497,18 +519,30 @@
   }
 
   // Settings panel: four full-width toggle rows (Touch zones, Invert controls,
-  // Joystick, Sound) plus a Back button. Single geometry source, shared by draw +
-  // hit-test. SETTINGS_PANEL is the card the rows sit inside.
-  const SETTINGS_PANEL = { pw: 560, ph: 344, px: (VIEW_W - 560) / 2, py: (VIEW_H - 344) / 2 };
+  // Joystick, Sound), a Home-screen action row, then a Back button. Single
+  // geometry source, shared by draw + hit-test.
+  const SETTINGS_PANEL = { pw: 560, ph: 392, px: (VIEW_W - 560) / 2, py: (VIEW_H - 392) / 2 };
   function settingsTargets() {
     const { px, py, pw } = SETTINGS_PANEL;
-    const rx = px + 40, rw = pw - 80, rh = 46;
+    const rx = px + 40, rw = pw - 80, rh = 44;
     return [
-      { index: 0, rect: [rx, py + 56, rw, rh] },           // Touch zones
-      { index: 1, rect: [rx, py + 108, rw, rh] },          // Invert controls
-      { index: 2, rect: [rx, py + 160, rw, rh] },          // Joystick
-      { index: 3, rect: [rx, py + 212, rw, rh] },          // Sound
-      { index: 4, rect: [VIEW_W / 2 - 80, py + 280, 160, 44] }, // Back
+      { index: 0, rect: [rx, py + 52, rw, rh] },           // Touch zones
+      { index: 1, rect: [rx, py + 100, rw, rh] },          // Invert controls
+      { index: 2, rect: [rx, py + 148, rw, rh] },          // Joystick
+      { index: 3, rect: [rx, py + 196, rw, rh] },          // Sound
+      { index: 4, rect: [rx, py + 250, rw, rh] },          // Home screen (action)
+      { index: 5, rect: [VIEW_W / 2 - 80, py + 314, 160, 44] }, // Back
+    ];
+  }
+
+  // The two buttons on the "return to Home Screen?" confirm.
+  function confirmHomeTargets() {
+    const pw = 620, ph = 220, py = (VIEW_H - ph) / 2;
+    const bw = 150, bh = 54, gap = 44, by = py + ph - 82;
+    const startX = VIEW_W / 2 - (bw * 2 + gap) / 2;
+    return [
+      { index: 0, rect: [startX, by, bw, bh] },            // Yes
+      { index: 1, rect: [startX + bw + gap, by, bw, bh] }, // No
     ];
   }
 
@@ -530,6 +564,7 @@
     else if (screen === 'select') list = selectTargets();
     else if (screen === 'pausemenu') list = pauseTargets();
     else if (screen === 'settings') list = settingsTargets();
+    else if (screen === 'confirmhome') list = confirmHomeTargets();
     else if (screen === 'gameComplete') list = gameCompleteTargets();
     else if (screen === 'instructions') {
       const r = instructionsButtonRect();               // only the "Press ENTER" button starts play
@@ -555,6 +590,7 @@
     else if (screen === 'select') { if (selIndex !== target.index) { selIndex = target.index; Sfx.move(); } }
     else if (screen === 'pausemenu') { if (pauseIndex !== target.index) { pauseIndex = target.index; Sfx.move(); } }
     else if (screen === 'settings') { if (settingsIndex !== target.index) { settingsIndex = target.index; Sfx.move(); } }
+    else if (screen === 'confirmhome') { if (confirmIndex !== target.index) { confirmIndex = target.index; Sfx.move(); } }
     else if (screen === 'gameComplete' && gcState) { if (gcState.gcIndex !== target.index) { gcState.gcIndex = target.index; Sfx.move(); } }
   }
 
@@ -604,7 +640,7 @@
     // Direct-tap screens: a single tap acts immediately. Settings toggles/Back
     // flip or go back; the instructions "Press ENTER" button starts play — no
     // double-tap needed for a plain button.
-    if (screen === 'settings' || screen === 'instructions') { highlightMenu(target); confirmMenu(); return; }
+    if (screen === 'settings' || screen === 'instructions' || screen === 'confirmhome') { highlightMenu(target); confirmMenu(); return; }
 
     const now = performance.now();
     if (sameTarget(target, lastTap.target) && lastTap.screen === screen && now - lastTap.t <= DOUBLE_TAP_MS) {
@@ -700,7 +736,7 @@
     // Parallax landscape backdrop (scenery.js): only behind the live world, so
     // menus and level-select thumbnails are untouched. Sits between the flat
     // sky and the ambient pollen.
-    if (screen === 'playing' || screen === 'pausemenu' || screen === 'settings' || screen === 'gameComplete') {
+    if (screen === 'playing' || screen === 'pausemenu' || screen === 'settings' || screen === 'confirmhome' || screen === 'gameComplete') {
       Scenery.drawBack(ctx, camera.x, camera.y, VIEW_W, VIEW_H);
     }
 
@@ -733,6 +769,9 @@
       drawPause();
     } else if (screen === 'settings') {
       drawSettings();
+    } else if (screen === 'confirmhome') {
+      drawSettings();       // keep the settings card behind the confirm
+      drawConfirmHome();
     } else if (paused) {
       ctx.fillStyle = 'rgba(20,10,40,0.45)';
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -923,15 +962,69 @@
     ctx.lineWidth = 6; ctx.strokeStyle = '#2f2233'; ctx.stroke();
 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#e8622c'; ctx.font = '700 40px system-ui, sans-serif';
-    ctx.fillText('Settings', VIEW_W / 2, py + 32);
+    ctx.fillStyle = '#e8622c'; ctx.font = '700 38px system-ui, sans-serif';
+    ctx.fillText('Settings', VIEW_W / 2, py + 30);
 
     const t = settingsTargets();
     drawSettingRow(t[0].rect, 'Touch zones', zonesOn, settingsIndex === 0);
     drawSettingRow(t[1].rect, 'Invert controls', invertControls, settingsIndex === 1);
     drawSettingRow(t[2].rect, 'Joystick', joystickOn, settingsIndex === 2);
     drawSettingRow(t[3].rect, 'Sound', !Sfx.isMuted(), settingsIndex === 3);
-    drawBackButton(t[4].rect, settingsIndex === 4);
+    drawSettingAction(t[4].rect, 'Home screen', settingsIndex === 4);
+    drawBackButton(t[5].rect, settingsIndex === 5);
+  }
+
+  // A full-width action row (no toggle) — a left-aligned label with a little house
+  // glyph on the right. Used for the "Home screen" restart action.
+  function drawSettingAction(rect, label, focused) {
+    const [x, y, w, h] = rect;
+    roundRect(x, y, w, h, 14);
+    ctx.fillStyle = '#f3e7d2'; ctx.fill();
+    if (focused) { ctx.lineWidth = 5; ctx.strokeStyle = '#3a8f2e'; }
+    else { ctx.lineWidth = 3; ctx.strokeStyle = '#d8c9ad'; }
+    ctx.stroke();
+    ctx.fillStyle = '#2f2233'; ctx.font = '600 24px system-ui, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + 22, y + h / 2 + 1);
+    // Small house glyph on the right.
+    const hx = x + w - 34, hy = y + h / 2;
+    ctx.strokeStyle = '#2f2233'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.fillStyle = '#e8622c';
+    ctx.beginPath(); ctx.moveTo(hx - 12, hy - 1); ctx.lineTo(hx, hy - 12); ctx.lineTo(hx + 12, hy - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+    roundRect(hx - 9, hy - 1, 18, 12, 2);
+    ctx.fillStyle = '#fff7ec'; ctx.fill(); ctx.stroke();
+  }
+
+  // The "Are you sure you want to return to Home Screen?" confirm, over the
+  // settings screen. Yes returns to level select; No goes back to Settings.
+  function drawConfirmHome() {
+    ctx.fillStyle = 'rgba(20,10,40,0.62)';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    const pw = 620, ph = 220, px = (VIEW_W - pw) / 2, py = (VIEW_H - ph) / 2;
+    roundRect(px, py, pw, ph, 28);
+    ctx.fillStyle = '#fff7ec'; ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#2f2233'; ctx.stroke();
+
+    ctx.fillStyle = '#2f2233'; ctx.font = '700 30px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    wrapText('Are you sure you want to return to Home Screen?', VIEW_W / 2, py + 66, pw - 90, 40);
+
+    const t = confirmHomeTargets();
+    drawConfirmButton(t[0].rect, 'Yes', confirmIndex === 0, '#3a8f2e');
+    drawConfirmButton(t[1].rect, 'No', confirmIndex === 1, '#e8622c');
+  }
+
+  // A confirm-dialog button: the focused one fills with its colour + white text;
+  // the other stays a muted cap.
+  function drawConfirmButton(rect, label, focused, color) {
+    const [x, y, w, h] = rect;
+    roundRect(x, y, w, h, 14);
+    ctx.fillStyle = focused ? color : '#f3e7d2'; ctx.fill();
+    ctx.lineWidth = focused ? 5 : 3; ctx.strokeStyle = focused ? '#2f2233' : '#d8c9ad'; ctx.stroke();
+    ctx.fillStyle = focused ? '#fff7ec' : '#2f2233';
+    ctx.font = '700 26px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + w / 2, y + h / 2 + 1);
   }
 
   // A settings row: a full-width cap with a left-aligned label and an on/off
@@ -1036,20 +1129,21 @@
     const cosphi = Math.sqrt(Math.max(0, 1 - frac * frac));
     const kx = jp.x + joyOffset, ky = jp.y - JOY_L * cosphi * JOY_C;
     ctx.save();
-    ctx.fillStyle = 'rgba(28,20,32,0.18)';               // cast shadow on the pad
-    ctx.beginPath(); ctx.ellipse(kx, jp.y, 16, 5, 0, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(jp.x, jp.y, 24, 22, 0, 0, 7); // base pad
-    ctx.fillStyle = 'rgba(28,20,38,0.28)'; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.stroke();
-    ctx.lineCap = 'round';                                // stick
+    // Base pad — a small, slightly-flattened disc (no drop shadow).
+    ctx.beginPath(); ctx.ellipse(jp.x, jp.y, 12, 8, 0, 0, 7);
+    ctx.fillStyle = 'rgba(28,20,38,0.14)'; ctx.fill();
+    ctx.lineWidth = 0.3; ctx.strokeStyle = 'rgba(255,255,255,0.30)'; ctx.stroke();
+    // Stick — smoked translucent shaft with a hairline highlight edge.
+    ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(jp.x, jp.y); ctx.lineTo(kx, ky);
-    ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(28,20,38,0.44)'; ctx.stroke();
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.32)'; ctx.stroke();
-    ctx.beginPath(); ctx.arc(kx, ky, 18, 0, 7);           // knob
-    ctx.fillStyle = 'rgba(30,22,42,0.42)'; ctx.fill();
-    ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(kx - 6, ky - 6, 5, 3.5, 0, 0, 7); // highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+    ctx.lineWidth = 11; ctx.strokeStyle = 'rgba(28,20,38,0.26)'; ctx.stroke();
+    ctx.lineWidth = 0.5; ctx.strokeStyle = 'rgba(255,255,255,0.20)'; ctx.stroke();
+    // Knob — light near-white ball with a hairline dark rim.
+    ctx.beginPath(); ctx.arc(kx, ky, 18, 0, 7);
+    ctx.fillStyle = 'rgba(228,232,238,0.70)'; ctx.fill();
+    ctx.lineWidth = 0.4; ctx.strokeStyle = 'rgba(47,34,51,0.50)'; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(kx - 6, ky - 6, 5, 3.5, 0, 0, 7);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
     ctx.restore();
   }
 

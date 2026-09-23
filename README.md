@@ -7,7 +7,7 @@ build step, no external asset files. Everything on screen is drawn from canvas
 primitives (circles, rounded rects, arcs) in a flat, thick-outlined, felt-toy
 style.
 
-**Current version: v0.9.2** (2026-09-21)
+**Current version: v0.9.3** (2026-09-23)
 
 ---
 
@@ -57,7 +57,9 @@ and the Settings switches act on a single tap.
 
 **Settings** live behind the pause menu's middle button (a two-cog ⚙ icon, where
 Mute used to be) and hold four switches — **Touch zones**, **Invert controls**,
-**Joystick**, and **Sound** — plus Back. Turning **Touch zones** on shows a
+**Joystick**, and **Sound** — plus a **Home screen** button (with an "Are you
+sure?" Yes/No confirm) that ends the run and returns to level select, and Back.
+Turning **Touch zones** on shows a
 mostly-transparent guide across the lower fifth of the screen (◀ move left, ▶
 move right, ▲ jump) that mirrors the real input split. **Invert controls** swaps
 the sides — jump on the left, movement on the right (mirrored, so the outer edge
@@ -181,6 +183,20 @@ levels are next.
 ---
 
 ## Version history
+
+### v0.9.3 — Joystick polish and Home-screen option (2026-09-23)
+- **Return to Home screen from Settings** — a new **Home screen** row (below Sound)
+  opens an "Are you sure you want to return to Home Screen?" confirm with **Yes** /
+  **No** (No highlighted by default; Esc/Back = No). **Yes** ends the current run
+  and returns to level select; **No** goes back to Settings.
+- **Joystick position** — nudged 20% in from the corner toward the centre so it
+  sits clear of the edge while still leaving room for a full flat sweep both ways.
+- **Joystick look** — the knob is now a light near-white ball (was dark), the base
+  pad is 50% smaller and slightly flattened, the drop shadow is gone, every line
+  is a hairline (~80% thinner), the whole thing is more transparent, and the stick
+  is 10% shorter.
+- **Centred spawn** — every level starts the character in the centre of the view
+  (from v0.9.2's engine change), so it never overlaps a corner control.
 
 ### v0.9.2 — Smartphone touch controls (2026-09-21)
 - **Playable on phones from the browser**, no app. In-play the screen splits:
